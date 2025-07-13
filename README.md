@@ -2,6 +2,10 @@
 
 A library server created to provide a highly performant system to archive, scan and catalog your books, manga and comics.
 
+### Important
+
+- Upon running the server for the first time, please make note of the automatically generated username and password it creates. You'll need to connect with a client.
+
 ### Features
 
 - A fast library server written in Node.js.
