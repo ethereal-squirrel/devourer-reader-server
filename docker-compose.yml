@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  devourer-server:
+    build: .
+    ports:
+      - "9024:9024"
+    volumes:
+      - devourer-db:/app/prisma
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  devourer-db:

@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "windows", "debian-openssl-1.1.x", "debian-openssl-3.0.x", "linux-musl", "darwin", "darwin-arm64"]
+  previewFeatures = ["driverAdapters"]
+  output          = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Config {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  email      String   @unique
+  password   String
+  api_key    String
+  roles      Json
+  metadata   Json
+  created_at DateTime
+}
+
+model Library {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  path         String        @unique
+  type         String
+  metadata     Json
+  book_files   BookFile[]
+  manga_series MangaSeries[]
+}
+
+model BookFile {
+  id           Int      @id @default(autoincrement())
+  title        String
+  path         String   @unique
+  file_name    String
+  file_format  String
+  total_pages  Int
+  current_page String
+  is_read      Boolean
+  library_id   Int
+  metadata     Json
+  Library      Library? @relation(fields: [library_id], references: [id])
+}
+
+model MangaSeries {
+  id          Int         @id @default(autoincrement())
+  title       String
+  path        String      @unique
+  cover       String
+  library_id  Int
+  manga_data  Json
+  library     Library     @relation(fields: [library_id], references: [id])
+  manga_files MangaFile[]
+}
+
+model MangaFile {
+  id           Int         @id @default(autoincrement())
+  path         String      @unique
+  file_name    String
+  file_format  String
+  volume       Int
+  chapter      Int
+  total_pages  Int
+  current_page Int
+  is_read      Boolean
+  series_id    Int
+  metadata     Json
+  manga_series MangaSeries @relation(fields: [series_id], references: [id])
+}
+
+model RecentlyRead {
+  id           Int     @id @default(autoincrement())
+  is_local     Boolean
+  library_id   Int
+  series_id    Int
+  file_id      Int
+  current_page Int
+  total_pages  Int
+  volume       Int
+  chapter      Int
+  user_id      Int
+}
+
+model Collection {
+  id         Int    @id @default(autoincrement())
+  library_id Int
+  name       String
+  series     Json
+  user_id    Int
+}

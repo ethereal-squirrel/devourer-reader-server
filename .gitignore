@@ -1,0 +1,9 @@
+generated/prisma/
+executables
+prisma/devourer.db
+
+# Common folders
+.claude
+.vscode
+node_modules
+dist
