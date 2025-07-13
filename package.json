@@ -39,7 +39,7 @@
     "outputPath": "executables"
   },
   "dependencies": {
-    "@devourer-reader/shared": "^1.0.2",
+    "@devourer-reader/shared": "^1.0.4",
     "@prisma/adapter-better-sqlite3": "^6.8.2",
     "@prisma/client": "^6.8.2",
     "@types/jsonwebtoken": "^9.0.10",
