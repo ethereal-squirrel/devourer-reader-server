@@ -96,6 +96,24 @@ export const checkAuth = async (req: Request, res: Response, next: any) => {
   }
 };
 
+export const resetPassword = async (email: string, password: string) => {
+  const user = await prisma.user.findFirst({
+    where: { email },
+  });
+
+  if (!user) {
+    return { status: false, message: "User not found." };
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 12);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: hashedPassword },
+  });
+
+  return { status: true, message: "Password reset successful." };
+};
+
 export const handleLogin = async (email: string, password: string) => {
   const user = await prisma.user.findFirst({
     where: { email },

@@ -297,3 +297,7 @@ Example: `./devourer-server scan-library 1`
 Retrieve the scan status of the specified library.
 
 Example: `./devourer-server scan-status 1`
+
+#### ./devourer-server reset-password USERNAME PASSWORD
+
+Set the password of an account to the specified password.

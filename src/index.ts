@@ -10,6 +10,7 @@ import fs from "fs";
 import router from "./routes";
 import { PrismaClient } from "../generated/prisma/client";
 import { errorHandler } from "./middleware/errorHandler";
+import { resetPassword } from "./lib/auth";
 
 declare global {
   namespace NodeJS {
@@ -243,6 +244,20 @@ async function handleCommand(command: string, args: string[]) {
             metadata: { provider: libraryProvider, api_key: libraryApiKey },
           }),
         });
+      }
+      break;
+    case "reset-password":
+      {
+        const email = args[0];
+        const password = args[1];
+
+        if (!email || !password) {
+          console.error("Invalid email or password");
+          process.exit(1);
+        }
+
+        const res = await resetPassword(email, password);
+        console.log(res);
       }
       break;
     case "scan-library":
