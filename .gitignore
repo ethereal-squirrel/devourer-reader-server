@@ -7,3 +7,4 @@ prisma/devourer.db
 .vscode
 node_modules
 dist
+prisma/devourer.db-journal

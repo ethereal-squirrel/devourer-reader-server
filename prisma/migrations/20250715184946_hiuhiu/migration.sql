@@ -1,6 +1,14 @@
+/*
+  Warnings:
+
+  - Added the required column `formats` to the `BookFile` table without a default value. This is not possible if the table is not empty.
+  - Added the required column `tags` to the `BookFile` table without a default value. This is not possible if the table is not empty.
+  - Added the required column `metadata` to the `Library` table without a default value. This is not possible if the table is not empty.
+
+*/
+-- RedefineTables
 PRAGMA defer_foreign_keys=ON;
 PRAGMA foreign_keys=OFF;
--- AlterTable
 CREATE TABLE "new_BookFile" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "title" TEXT NOT NULL,
@@ -19,8 +27,19 @@ CREATE TABLE "new_BookFile" (
 INSERT INTO "new_BookFile" ("current_page", "file_format", "file_name", "id", "is_read", "library_id", "metadata", "path", "title", "total_pages") SELECT "current_page", "file_format", "file_name", "id", "is_read", "library_id", "metadata", "path", "title", "total_pages" FROM "BookFile";
 DROP TABLE "BookFile";
 ALTER TABLE "new_BookFile" RENAME TO "BookFile";
-
--- AlterTable
+CREATE UNIQUE INDEX "BookFile_path_key" ON "BookFile"("path");
+CREATE TABLE "new_Library" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL,
+    "path" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "metadata" JSONB NOT NULL
+);
+INSERT INTO "new_Library" ("id", "name", "path", "type") SELECT "id", "name", "path", "type" FROM "Library";
+DROP TABLE "Library";
+ALTER TABLE "new_Library" RENAME TO "Library";
+CREATE UNIQUE INDEX "Library_name_key" ON "Library"("name");
+CREATE UNIQUE INDEX "Library_path_key" ON "Library"("path");
 CREATE TABLE "new_RecentlyRead" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "is_local" BOOLEAN NOT NULL,
