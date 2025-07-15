@@ -46,6 +46,9 @@ jobs:
         with:
           node-version: 20.x
 
+      - name: install yao-pkg
+        run: npm install -g @yao-pkg/pkg
+
       - name: install dependencies
         run: npm install
 
