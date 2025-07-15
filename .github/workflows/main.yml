@@ -7,6 +7,10 @@ on:
         description: "Version number"
         required: true
         type: string
+      description:
+        description: "Description"
+        required: false
+        type: string
 
 jobs:
   build:
@@ -100,6 +104,7 @@ jobs:
           name: "Devourer Server v${{ inputs.version }}"
           body: |
             ## Devourer Server v${{ inputs.version }}
+            ${inputs.description}
             
             ### Download
             Choose the appropriate binary for your platform:
