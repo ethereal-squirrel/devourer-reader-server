@@ -18,6 +18,7 @@
     "@types/jimp": "^0.2.28",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.15.18",
+    "@types/sqlite3": "^3.1.11",
     "@types/xml2js": "^0.4.14",
     "@yao-pkg/pkg": "^6.5.1",
     "prisma": "^6.8.2",
@@ -42,6 +43,7 @@
     "@devourer-reader/shared": "^1.0.4",
     "@prisma/adapter-better-sqlite3": "^6.8.2",
     "@prisma/client": "^6.8.2",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/jsonwebtoken": "^9.0.10",
     "@zip.js/zip.js": "^2.7.57",
     "bcryptjs": "^3.0.2",
@@ -66,6 +68,7 @@
     "pdfjs-dist": "^3.11.174",
     "r2-opds-js": "^1.0.47",
     "skia-canvas": "^2.0.2",
+    "sqlite3": "^5.1.7",
     "uuid": "^11.1.0",
     "webp-wasm": "^1.0.6",
     "xml2js": "^0.6.2"

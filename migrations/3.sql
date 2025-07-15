@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "BookFile" ADD COLUMN "tags" JSONB NOT NULL DEFAULT '[]';

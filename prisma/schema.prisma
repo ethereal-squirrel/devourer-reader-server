@@ -50,6 +50,8 @@ model BookFile {
   is_read      Boolean
   library_id   Int
   metadata     Json
+  formats      Json
+  tags         Json
   Library      Library? @relation(fields: [library_id], references: [id])
 }
 

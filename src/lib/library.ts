@@ -540,6 +540,14 @@ const scanBookLibrary = async (library: Library, folders: string[]) => {
                   : null,
               },
               library_id: library.id,
+              tags: [],
+              formats: [
+                {
+                  format: path.extname(file).slice(1),
+                  name: path.basename(file),
+                  path: file,
+                },
+              ],
             },
           });
 

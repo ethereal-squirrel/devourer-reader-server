@@ -7,6 +7,7 @@ import filesRouter from "./files";
 import imagesRouter from "./images";
 import clientRouter from "./client";
 import opdsRouter from "./opds";
+import migrateRouter from "./migrate";
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.use(seriesRouter);
 router.use(filesRouter);
 router.use(imagesRouter);
 router.use(clientRouter);
+router.use(migrateRouter);
 router.use("/opds", opdsRouter);
 
 export default router;
