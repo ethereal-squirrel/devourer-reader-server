@@ -16,7 +16,7 @@ CREATE TABLE "new_BookFile" (
     "tags" JSONB NOT NULL,
     CONSTRAINT "BookFile_library_id_fkey" FOREIGN KEY ("library_id") REFERENCES "Library" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
-INSERT INTO "new_BookFile" ("current_page", "file_format", "file_name", "id", "is_read", "library_id", "metadata", "path", "title", "total_pages") SELECT "current_page", "file_format", "file_name", "id", "is_read", "library_id", "metadata", "path", "title", "total_pages" FROM "BookFile";
+INSERT INTO "new_BookFile" ("current_page", "file_format", "file_name", "id", "is_read", "library_id", "metadata", "path", "title", "total_pages", "formats", "tags") SELECT "current_page", "file_format", "file_name", "id", "is_read", "library_id", "metadata", "path", "title", "total_pages", "formats", "tags" FROM "BookFile";
 DROP TABLE "BookFile";
 ALTER TABLE "new_BookFile" RENAME TO "BookFile";
 
