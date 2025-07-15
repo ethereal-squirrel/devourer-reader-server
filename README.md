@@ -24,9 +24,9 @@ A library server created to provide a highly performant system to archive, scan 
 
 ### Book Features
 
-- A fast library server written in Node.js.
 - Supports EPUB and PDF currently. More formats to follow shortly.
 - Support for OPDS 1.2.
+- Import existing libraries from Calibre.
 
 ### Binary Releases
 
