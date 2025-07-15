@@ -15,6 +15,12 @@ router.get("/", (req: Request, res: Response) => {
   res.send("Devourer Server");
 });
 
+router.get("/version", (req: Request, res: Response) => {
+  res.json({
+    version: require("../../package.json").version,
+  });
+});
+
 router.use(authRouter);
 router.use(librariesRouter);
 router.use(seriesRouter);
