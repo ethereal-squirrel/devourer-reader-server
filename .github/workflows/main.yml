@@ -1,0 +1,126 @@
+name: "publish"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number"
+        required: true
+        type: string
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-13"
+            args: "node20-macos-x64"
+            extension: ""
+            artifact_name: "devourer-server-${{ inputs.version }}-macos-x64"
+          - platform: "macos-latest"
+            args: "node20-macos-arm64"
+            extension: ""
+            artifact_name: "devourer-server-${{ inputs.version }}-macos-arm64"
+          - platform: "ubuntu-22.04"
+            args: "node20-linux-x64"
+            extension: ""
+            artifact_name: "devourer-server-${{ inputs.version }}-linux-x64"
+          - platform: "ubuntu-22.04-arm64"
+            args: "node20-linux-arm64"
+            extension: ""
+            artifact_name: "devourer-server-${{ inputs.version }}-linux-arm64"
+          - platform: "windows-latest"
+            args: "node20-win-x64"
+            extension: ".exe"
+            artifact_name: "devourer-server-${{ inputs.version }}-win-x64.exe"
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: install dependencies
+        run: npm install
+
+      - name: generate prisma client
+        run: npx prisma generate
+
+      - name: build package
+        run: node scripts/build.js -t ${{ matrix.args }}
+
+      - name: rename package
+        shell: bash
+        run: |
+          mkdir -p release
+          if [ "${{ matrix.extension }}" = "" ]; then
+            mv executables/* release/${{ matrix.artifact_name }}
+          else
+            mv executables/* release/${{ matrix.artifact_name }}
+          fi
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: release/${{ matrix.artifact_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: create release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ inputs.version }}
+          name: "Devourer Server v${{ inputs.version }}"
+          body: |
+            ## Devourer Server v${{ inputs.version }}
+            
+            ### Download
+            Choose the appropriate binary for your platform:
+            
+            **Windows:**
+            - **x64**: `devourer-server-${{ inputs.version }}-win-x64.exe`
+            
+            **macOS:**
+            - **Intel (x64)**: `devourer-server-${{ inputs.version }}-macos-x64`
+            - **Apple Silicon (M1/M2)**: `devourer-server-${{ inputs.version }}-macos-arm64`
+            
+            **Linux:**
+            - **x64**: `devourer-server-${{ inputs.version }}-linux-x64`
+            - **ARM64**: `devourer-server-${{ inputs.version }}-linux-arm64`
+            
+            ### Installation
+            1. Download the binary for your platform and architecture
+            2. Make it executable (macOS/Linux): `chmod +x devourer-server-*`
+            3. Run the server: `./devourer-server-*` (or double-click on Windows)
+            
+            ### Notes
+            - For macOS users: If you're unsure of your architecture, M1/M2 Macs should use the ARM64 version
+            - For Linux ARM64: This includes support for Raspberry Pi 4+ and other ARM64 Linux systems
+            
+            See the assets below to download this version and install.
+          draft: true
+          prerelease: false
+          files: |
+            release-assets/devourer-server-${{ inputs.version }}-win-x64.exe/devourer-server-${{ inputs.version }}-win-x64.exe
+            release-assets/devourer-server-${{ inputs.version }}-macos-x64/devourer-server-${{ inputs.version }}-macos-x64
+            release-assets/devourer-server-${{ inputs.version }}-macos-arm64/devourer-server-${{ inputs.version }}-macos-arm64
+            release-assets/devourer-server-${{ inputs.version }}-linux-x64/devourer-server-${{ inputs.version }}-linux-x64
+            release-assets/devourer-server-${{ inputs.version }}-linux-arm64/devourer-server-${{ inputs.version }}-linux-arm64
