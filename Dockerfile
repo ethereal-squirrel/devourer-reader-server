@@ -7,20 +7,26 @@ RUN apk add --no-cache \
     make \
     g++ \
     cairo-dev \
+    cairo \
     jpeg-dev \
     pango-dev \
+    pango \
     musl-dev \
     giflib-dev \
+    giflib \
     pixman-dev \
+    pixman \
     pangomm-dev \
     libjpeg-turbo-dev \
-    freetype-dev
+    libjpeg-turbo \
+    freetype-dev \
+    freetype
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install -g npm@latest && \
+RUN npm install -g npm@latest rimraf node-pre-gyp node-gyp && \
     npm i && \
     npm cache clean --force
 

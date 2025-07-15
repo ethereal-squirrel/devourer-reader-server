@@ -174,17 +174,22 @@ async function initializeDatabase() {
         i <= DATABASE_VERSION;
         i++
       ) {
-        const migrationSql = fs.readFileSync(
-          path.join(__dirname, `../migrations/${i}.sql`),
-          "utf8"
-        );
-        const statements = migrationSql
-          .split(";")
-          .map((stmt) => stmt.trim())
-          .filter((stmt) => stmt.length > 0);
+        try {
+          const migrationSql = fs.readFileSync(
+            path.join(__dirname, `../migrations/${i}.sql`),
+            "utf8"
+          );
+          const statements = migrationSql
+            .split(";")
+            .map((stmt) => stmt.trim())
+            .filter((stmt) => stmt.length > 0);
 
-        for (const statement of statements) {
-          await prisma.$executeRawUnsafe(statement);
+          for (const statement of statements) {
+            await prisma.$executeRawUnsafe(statement);
+          }
+        } catch (error) {
+          console.error(`Failed to run migration ${i}:`, error);
+          throw error;
         }
       }
 

@@ -28,7 +28,7 @@ jobs:
             args: "node20-linux-x64"
             extension: ""
             artifact_name: "devourer-server-${{ inputs.version }}-linux-x64"
-          - platform: "ubuntu-22.04-arm64"
+          - platform: "ubuntu-22.04-arm"
             args: "node20-linux-arm64"
             extension: ""
             artifact_name: "devourer-server-${{ inputs.version }}-linux-arm64"
