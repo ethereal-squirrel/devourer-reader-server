@@ -193,7 +193,7 @@ Parameters: [libraryId: libraryId, id: fileId]
 
 #### [GET] /stream/:libraryId/:id
 
-Stream/download the file. Returns the file as a .zip archive. If the archive is not a zip, it will extract it and convert it to a zip for client compatibility.
+Stream/download the file.
 
 Parameters: [libraryId: libraryId, id: fileId]
 
