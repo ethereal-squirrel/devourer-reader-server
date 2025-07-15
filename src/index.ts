@@ -34,7 +34,7 @@ if (process.pkg) {
 
 dotenv.config();
 
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 3;
 
 export const app: Express = express();
 const port = process.env.PORT || 9024;
@@ -55,7 +55,7 @@ app.use(errorHandler);
 async function initializeDatabase() {
   const prisma = new PrismaClient({
     adapter: new PrismaBetterSQLite3({
-      url: process.env.DATABASE_URL,
+      url: process.env.DATABASE_URL!,
     }),
   });
 
@@ -158,46 +158,46 @@ async function initializeDatabase() {
           value: "1",
         },
       });
-    } else {
-      const config = await prisma.config.findUnique({
+    }
+
+    const config = await prisma.config.findUnique({
+      where: {
+        key: "migration_version",
+      },
+    });
+
+    if (config?.value !== DATABASE_VERSION.toString()) {
+      console.log("Database is out of date, running migrations...");
+
+      for (
+        let i = parseInt(config?.value ?? "0") + 1;
+        i <= DATABASE_VERSION;
+        i++
+      ) {
+        const migrationSql = fs.readFileSync(
+          path.join(__dirname, `../migrations/${i}.sql`),
+          "utf8"
+        );
+        const statements = migrationSql
+          .split(";")
+          .map((stmt) => stmt.trim())
+          .filter((stmt) => stmt.length > 0);
+
+        for (const statement of statements) {
+          await prisma.$executeRawUnsafe(statement);
+        }
+      }
+
+      await prisma.config.update({
         where: {
           key: "migration_version",
         },
+        data: {
+          value: DATABASE_VERSION.toString(),
+        },
       });
 
-      if (config?.value !== DATABASE_VERSION.toString()) {
-        console.log("Database is out of date, running migrations...");
-
-        for (
-          let i = parseInt(config?.value ?? "0") + 1;
-          i <= DATABASE_VERSION;
-          i++
-        ) {
-          const migrationSql = fs.readFileSync(
-            path.join(__dirname, `../migrations/${i}.sql`),
-            "utf8"
-          );
-          const statements = migrationSql
-            .split(";")
-            .map((stmt) => stmt.trim())
-            .filter((stmt) => stmt.length > 0);
-
-          for (const statement of statements) {
-            await prisma.$executeRawUnsafe(statement);
-          }
-        }
-
-        await prisma.config.update({
-          where: {
-            key: "migration_version",
-          },
-          data: {
-            value: DATABASE_VERSION.toString(),
-          },
-        });
-
-        console.log("Database migrations executed successfully");
-      }
+      console.log("Database migrations executed successfully");
     }
 
     console.log("Database initialized successfully");
