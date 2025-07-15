@@ -87,7 +87,7 @@ model RecentlyRead {
   library_id   Int
   series_id    Int
   file_id      Int
-  current_page Int
+  current_page String
   total_pages  Int
   volume       Int
   chapter      Int
