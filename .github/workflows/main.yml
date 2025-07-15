@@ -49,6 +49,12 @@ jobs:
       - name: install yao-pkg
         run: npm install -g @yao-pkg/pkg
 
+      - name: install system dependencies (Linux ARM64)
+        if: matrix.platform == 'ubuntu-22.04-arm'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev libcogl-pango-dev
+
       - name: install dependencies
         run: npm install
 
