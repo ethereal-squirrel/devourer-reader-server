@@ -981,7 +981,7 @@ const scanMangaLibrary = async (library: Library, folders: string[]) => {
               volume: volume ?? 0,
               chapter: chapter ?? 0,
               total_pages: response?.pageCount ?? 0,
-              current_page: "0",
+              current_page: 0,
               is_read: false,
               series_id: existingSeries.id,
               metadata: {},
