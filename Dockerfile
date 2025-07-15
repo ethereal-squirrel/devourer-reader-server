@@ -1,9 +1,9 @@
-# Use Node.js LTS version
 FROM node:22-alpine
 
-# Install system dependencies for canvas and native modules
 RUN apk add --no-cache \
     python3 \
+    py3-setuptools \
+    py3-pip \
     make \
     g++ \
     cairo-dev \
@@ -16,23 +16,18 @@ RUN apk add --no-cache \
     libjpeg-turbo-dev \
     freetype-dev
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm i
+RUN npm install -g npm@latest && \
+    npm i && \
+    npm cache clean --force
 
-# Copy source code
 COPY . .
 
-# Build the application
-RUN npx tsc && npx prisma generate
+RUN npx prisma generate && npx tsc
 
-# Expose port
 EXPOSE 9024
 
-# Start the application
 CMD ["node", "dist/index.js"]
