@@ -1121,8 +1121,6 @@ const updateSeriesComplete = (libraryId: number, series: string) => {
 };
 
 export const getRecentlyRead = async (userId: number) => {
-  console.log("Getting recently read for user", userId);
-
   const recentlyRead = await prisma.recentlyRead.findMany({
     where: {
       user_id: userId,

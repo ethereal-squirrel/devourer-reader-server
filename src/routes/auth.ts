@@ -9,6 +9,7 @@ import {
 } from "../lib/auth";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { ApiError, AuthLoginRequest, AuthRegisterRequest } from "../types/api";
+import { prisma } from "../prisma";
 
 const router = Router();
 
@@ -65,6 +66,16 @@ router.get(
   checkAuth,
   asyncHandler(
     async (req: Request<any, any, AuthRegisterRequest>, res: Response) => {
+      const user = await prisma.user.findUnique({
+        where: {
+          id: Number(req.headers.user_id),
+        },
+      });
+
+      if (!user) {
+        throw new ApiError(400, "User not found");
+      }
+
       const roles = req.headers.user_roles as string;
 
       if (!roles) {
@@ -73,7 +84,7 @@ router.get(
 
       try {
         const rolesData = JSON.parse(roles);
-        res.json({ status: true, roles: rolesData });
+        res.json({ status: true, roles: rolesData, username: user.email });
       } catch (error) {
         res.json({ status: true, roles: {} });
       }
