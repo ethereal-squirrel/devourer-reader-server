@@ -92,6 +92,36 @@ router.get(
   )
 );
 
+router.get(
+  "/users",
+  checkAuth,
+  asyncHandler(
+    async (req: Request<any, any, AuthRegisterRequest>, res: Response) => {
+      let users = (await prisma.user.findMany({
+        select: {
+          id: true,
+          email: true,
+          roles: true,
+        },
+      })) as any;
+
+      for (let i = 0; i < users.length; i++) {
+        const user = users[i];
+
+        const userCollections = await prisma.collection.findMany({
+          where: {
+            user_id: user.id,
+          },
+        });
+
+        users[i].collections = userCollections.length;
+      }
+
+      res.json({ status: true, users });
+    }
+  )
+);
+
 router.delete(
   "/user",
   checkAuth,
