@@ -34,7 +34,7 @@ if (process.pkg) {
 
 dotenv.config();
 
-const DATABASE_VERSION = 4;
+const DATABASE_VERSION = 7;
 
 export const app: Express = express();
 const port = process.env.PORT || 9024;
@@ -124,9 +124,7 @@ async function initializeDatabase() {
           email: "admin",
           password: hashedPassword,
           api_key: hashedApiKey,
-          roles: {
-            set: ["admin"],
-          },
+          roles: ["admin"],
           metadata: {
             settings: {
               book_pagemode: "single",
@@ -174,6 +172,16 @@ async function initializeDatabase() {
         i <= DATABASE_VERSION;
         i++
       ) {
+        if (i <= parseInt(config?.value ?? "0")) {
+          continue;
+        }
+
+        console.log(
+          `[Migration] Running migration ${i} (${DATABASE_VERSION}) (${parseInt(
+            config?.value ?? "0"
+          )})`
+        );
+
         try {
           const migrationSql = fs.readFileSync(
             path.join(__dirname, `../migrations/${i}.sql`),

@@ -4,8 +4,48 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import { prisma } from "../prisma";
+import { ApiError } from "../types/api";
 
 const JWT_EXPIRY = "90d";
+
+const rolesData = {
+  admin: {
+    is_admin: true,
+    add_file: true,
+    delete_file: true,
+    edit_metadata: true,
+    manage_collections: true,
+    manage_library: true,
+    create_user: true,
+  },
+  moderator: {
+    is_admin: false,
+    add_file: true,
+    delete_file: true,
+    edit_metadata: true,
+    manage_collections: true,
+    manage_library: false,
+    create_user: false,
+  },
+  upload: {
+    is_admin: false,
+    add_file: true,
+    delete_file: false,
+    edit_metadata: false,
+    manage_collections: false,
+    manage_library: false,
+    create_user: false,
+  },
+  user: {
+    is_admin: false,
+    add_file: false,
+    delete_file: false,
+    edit_metadata: false,
+    manage_collections: false,
+    manage_library: false,
+    create_user: false,
+  },
+};
 
 const getJwtSecret = async (): Promise<string> => {
   const config = await prisma.config.findUnique({
@@ -38,6 +78,24 @@ export const verifyJwtToken = async (token: string) => {
   }
 };
 
+export const checkRoles = async (userRoles: string, requiredRole: string) => {
+  if (!userRoles) {
+    throw new ApiError(400, "You do not have permission to do this.");
+  }
+
+  const userRolesData = JSON.parse(userRoles);
+
+  if (userRolesData.is_admin) {
+    return true;
+  }
+
+  if (userRolesData[requiredRole]) {
+    return true;
+  }
+
+  throw new ApiError(400, "You do not have permission to do this.");
+};
+
 export const checkAuth = async (req: Request, res: Response, next: any) => {
   try {
     const authHeader = req.headers.authorization;
@@ -48,11 +106,15 @@ export const checkAuth = async (req: Request, res: Response, next: any) => {
     });
 
     if (!configVar) {
+      req.headers.user_id = "0";
+      req.headers.user_roles = JSON.stringify(rolesData.user);
       next();
       return;
     }
 
     if (configVar.value === "1") {
+      req.headers.user_id = "0";
+      req.headers.user_roles = JSON.stringify(rolesData.user);
       next();
       return;
     }
@@ -66,19 +128,43 @@ export const checkAuth = async (req: Request, res: Response, next: any) => {
         const jwtSecret = await getJwtSecret();
         const decoded = jwt.verify(token, jwtSecret) as any;
 
-        user = await prisma.user.findUnique({
+        user = (await prisma.user.findUnique({
           where: { id: decoded.userId },
-        });
+        })) as any;
+
+        let roles = {
+          is_admin: false,
+          add_file: false,
+          delete_file: false,
+          edit_metadata: false,
+          manage_collections: false,
+          manage_library: false,
+          create_user: false,
+        } as any;
+
+        if (user.roles.length > 0) {
+          const userRoles = await prisma.roles.findMany({
+            where: {
+              title: { in: user.roles },
+            },
+          });
+
+          for (const role of userRoles) {
+            roles = rolesData[role.title as keyof typeof rolesData];
+          }
+        }
 
         if (user) {
           (req as any).user = user;
           req.headers.user_id = user.id.toString();
+          req.headers.user_roles = JSON.stringify(roles);
         }
       } catch (jwtError) {
         console.error("JWT verification failed:", jwtError);
       }
     } else {
       req.headers.user_id = "0";
+      req.headers.user_roles = JSON.stringify(rolesData.user);
     }
 
     if (!user && configVar.value === "0") {
@@ -115,9 +201,9 @@ export const resetPassword = async (email: string, password: string) => {
 };
 
 export const handleLogin = async (email: string, password: string) => {
-  const user = await prisma.user.findFirst({
+  const user = (await prisma.user.findFirst({
     where: { email },
-  });
+  })) as any;
 
   if (!user) {
     return { status: false, message: "User not found." };
@@ -139,6 +225,29 @@ export const handleLogin = async (email: string, password: string) => {
     jwtSecret,
     { expiresIn: JWT_EXPIRY }
   );
+
+  const roles = {
+    is_admin: false,
+    add_file: false,
+    delete_file: false,
+    edit_metadata: false,
+    manage_collections: false,
+    manage_library: false,
+    create_user: false,
+  } as any;
+
+  if (user.roles.length > 0) {
+    const userRoles = await prisma.roles.findMany({
+      where: {
+        title: { in: user.roles },
+      },
+    });
+
+    for (const role of userRoles) {
+      roles[role.title as keyof typeof roles] =
+        rolesData[role.title as keyof typeof rolesData];
+    }
+  }
 
   return {
     status: true,
@@ -231,4 +340,24 @@ export const handleRegister = async (
     },
     message: "User created successfully.",
   };
+};
+
+export const handleDeleteUser = async (username: string) => {
+  const user = await prisma.user.findFirst({
+    where: { email: username },
+  });
+
+  if (!user) {
+    return { status: false, message: "User not found." };
+  }
+
+  if (user.roles && (user.roles as string[]).includes("admin")) {
+    return { status: false, message: "Cannot delete admin user." };
+  }
+
+  await prisma.user.delete({
+    where: { id: user.id },
+  });
+
+  return { status: true, message: "User deleted successfully." };
 };

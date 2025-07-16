@@ -29,6 +29,17 @@ model User {
   created_at DateTime
 }
 
+model Roles {
+  id             Int     @id @default(autoincrement())
+  title          String  @unique
+  is_admin       Boolean
+  add_file       Boolean
+  delete_file    Boolean
+  edit_metadata  Boolean
+  manage_library Boolean
+  create_user    Boolean
+}
+
 model Library {
   id           Int           @id @default(autoincrement())
   name         String        @unique
@@ -92,6 +103,14 @@ model RecentlyRead {
   volume       Int
   chapter      Int
   user_id      Int
+}
+
+model ReadingStatus {
+  id           Int    @id @default(autoincrement())
+  user_id      Int
+  file_type    String
+  file_id      Int
+  current_page String
 }
 
 model Collection {

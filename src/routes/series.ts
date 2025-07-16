@@ -4,7 +4,7 @@ import fs from "fs";
 import multer from "multer";
 
 import { prisma } from "../prisma";
-import { checkAuth } from "../lib/auth";
+import { checkAuth, checkRoles } from "../lib/auth";
 import { downloadImage, isImage } from "../lib/file";
 import { convertImageDataToWebP } from "../lib/library";
 import { asyncHandler } from "../middleware/asyncHandler";
@@ -97,9 +97,22 @@ seriesRouter.get(
       ],
     });
 
+    let data = [] as any;
+
+    for (const file of files) {
+      const readingStatus = await prisma.readingStatus.findFirst({
+        where: { file_id: file.id, user_id: Number(req.headers.user_id) },
+      });
+
+      data.push({
+        ...file,
+        current_page: readingStatus?.current_page || 0,
+      });
+    }
+
     res.json({
       status: true,
-      files,
+      files: data,
     });
   })
 );
@@ -108,6 +121,8 @@ seriesRouter.patch(
   "/series/:libraryId/:seriesId/metadata",
   checkAuth,
   asyncHandler(async (req: Request, res: Response) => {
+    await checkRoles(req.headers.user_roles as string, "edit_metadata");
+
     const { metadata } = req.body;
 
     if (!metadata) {
@@ -163,6 +178,8 @@ seriesRouter.patch(
   checkAuth,
   upload.single("cover"),
   asyncHandler(async (req: Request, res: Response) => {
+    await checkRoles(req.headers.user_roles as string, "edit_metadata");
+
     const uploadedFile = req.file;
     const { cover: coverUrl } = req.body;
 

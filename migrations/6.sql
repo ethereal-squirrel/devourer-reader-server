@@ -1,0 +1,1 @@
+UPDATE "User" SET "roles" = '["admin"]' WHERE "email" = 'admin';
