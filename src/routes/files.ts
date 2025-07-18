@@ -343,38 +343,57 @@ router.post(
       throw new ApiError(400, "File not found");
     }
 
-    const currentStatus = await prisma.readingStatus.findFirst({
-      where: {
-        file_id: fileId,
-        user_id: parseInt(req.headers.user_id as string),
-        file_type: library.type,
-      },
-    });
+    if (typeof page === "number" && page >= file.total_pages) {
+      await prisma.readingStatus.deleteMany({
+        where: {
+          file_id: fileId,
+          user_id: parseInt(req.headers.user_id as string),
+          file_type: library.type,
+        },
+      });
 
-    if (currentStatus) {
-      await prisma.readingStatus.update({
-        where: { id: currentStatus.id },
-        data: {
-          current_page: typeof page === "number" ? page.toString() : page,
+      await prisma.recentlyRead.deleteMany({
+        where: {
+          file_id: fileId,
+          library_id: parseInt(libraryId),
+          user_id: parseInt(req.headers.user_id as string),
         },
       });
     } else {
-      await prisma.readingStatus.create({
-        data: {
-          user_id: parseInt(req.headers.user_id as string),
+      const currentStatus = await prisma.readingStatus.findFirst({
+        where: {
           file_id: fileId,
+          user_id: parseInt(req.headers.user_id as string),
           file_type: library.type,
-          current_page: typeof page === "number" ? page.toString() : page,
         },
       });
+
+      if (currentStatus) {
+        await prisma.readingStatus.update({
+          where: { id: currentStatus.id },
+          data: {
+            current_page: typeof page === "number" ? page.toString() : page,
+          },
+        });
+      } else {
+        await prisma.readingStatus.create({
+          data: {
+            user_id: parseInt(req.headers.user_id as string),
+            file_id: fileId,
+            file_type: library.type,
+            current_page: typeof page === "number" ? page.toString() : page,
+          },
+        });
+      }
+
+      updateRecentlyRead(
+        libraryId,
+        fileId,
+        page,
+        parseInt(req.headers.user_id as string)
+      );
     }
 
-    updateRecentlyRead(
-      libraryId,
-      fileId,
-      page,
-      parseInt(req.headers.user_id as string)
-    );
     res.json({ status: true });
   })
 );

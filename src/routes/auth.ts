@@ -35,22 +35,19 @@ router.post(
 );
 
 router.post(
-  "/register",
+  "/users",
+  checkAuth,
   asyncHandler(
     async (req: Request<any, any, AuthRegisterRequest>, res: Response) => {
       await checkRoles(req.headers.user_roles as string, "create_user");
 
-      const { username, password, passwordConfirm } = req.body;
+      const { username, password, role } = req.body;
 
-      if (!username || !password || !passwordConfirm) {
+      if (!username || !password || !role) {
         throw new ApiError(400, "All fields are required");
       }
 
-      const response = await handleRegister(
-        username,
-        password,
-        passwordConfirm
-      );
+      const response = await handleRegister(username, password, role);
 
       if (!response.status) {
         throw new ApiError(400, response.message || "Failed to set auth key");
@@ -123,19 +120,19 @@ router.get(
 );
 
 router.delete(
-  "/user",
+  "/user/:id",
   checkAuth,
   asyncHandler(
     async (req: Request<any, any, AuthRegisterRequest>, res: Response) => {
       await checkRoles(req.headers.user_roles as string, "create_user");
 
-      const { username } = req.body;
+      const { id } = req.params;
 
-      if (!username) {
-        throw new ApiError(400, "Username required");
+      if (!id || isNaN(Number(id)) || Number(id) === 0) {
+        throw new ApiError(400, "Invalid user id");
       }
 
-      const response = await handleDeleteUser(username);
+      const response = await handleDeleteUser(id);
 
       if (!response.status) {
         throw new ApiError(400, response.message || "Failed to delete user");
@@ -153,17 +150,13 @@ router.patch(
     async (req: Request<any, any, AuthRegisterRequest>, res: Response) => {
       await checkRoles(req.headers.user_roles as string, "create_user");
 
-      const { username, password, passwordConfirm } = req.body;
+      const { username, password, role } = req.body;
 
-      if (!username || !password || !passwordConfirm) {
+      if (!username || !password || !role) {
         throw new ApiError(400, "All fields are required");
       }
 
-      const response = await handleRegister(
-        username,
-        password,
-        passwordConfirm
-      );
+      const response = await handleRegister(username, password, role);
 
       if (!response.status) {
         throw new ApiError(400, response.message || "Failed to set auth key");

@@ -264,30 +264,16 @@ export const handleLogin = async (email: string, password: string) => {
 export const handleRegister = async (
   email: string,
   password: string,
-  passwordConfirm: string,
-  roles?: string[]
+  role: string
 ) => {
-  if (email === "" || password === "" || passwordConfirm === "") {
+  if (email === "" || password === "") {
     return { status: false, message: "All fields are required." };
-  }
-
-  if (password !== passwordConfirm) {
-    return { status: false, message: "Passwords do not match." };
   }
 
   if (password.length < 8) {
     return {
       status: false,
       message: "Password must be at least 8 characters long.",
-    };
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  if (!emailRegex.test(email)) {
-    return {
-      status: false,
-      message: "Please enter a valid email address.",
     };
   }
 
@@ -301,7 +287,7 @@ export const handleRegister = async (
     data: {
       email,
       password: hash,
-      roles: roles || ["user"],
+      roles: [role],
       api_key: hashedApiKey,
       metadata: {
         settings: {
@@ -342,9 +328,9 @@ export const handleRegister = async (
   };
 };
 
-export const handleDeleteUser = async (username: string) => {
+export const handleDeleteUser = async (id: string) => {
   const user = await prisma.user.findFirst({
-    where: { email: username },
+    where: { id: Number(id) },
   });
 
   if (!user) {
@@ -354,6 +340,24 @@ export const handleDeleteUser = async (username: string) => {
   if (user.roles && (user.roles as string[]).includes("admin")) {
     return { status: false, message: "Cannot delete admin user." };
   }
+
+  await prisma.collection.deleteMany({
+    where: {
+      user_id: user.id,
+    },
+  });
+
+  await prisma.recentlyRead.deleteMany({
+    where: {
+      user_id: user.id,
+    },
+  });
+
+  await prisma.readingStatus.deleteMany({
+    where: {
+      user_id: user.id,
+    },
+  });
 
   await prisma.user.delete({
     where: { id: user.id },
