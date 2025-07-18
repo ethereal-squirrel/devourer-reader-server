@@ -365,3 +365,39 @@ export const handleDeleteUser = async (id: string) => {
 
   return { status: true, message: "User deleted successfully." };
 };
+
+export const handleEditUser = async (
+  id: string,
+  role: string,
+  password?: string
+) => {
+  const user = await prisma.user.findFirst({
+    where: { id: Number(id) },
+  });
+
+  if (!user) {
+    return { status: false, message: "User not found." };
+  }
+
+  if (user.id === Number(1) && role !== "admin") {
+    return {
+      status: false,
+      message: "Cannot remove admin role from admin user.",
+    };
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { roles: [role] },
+  });
+
+  if (password) {
+    const hashedPassword = await bcrypt.hash(password, 12);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+  }
+
+  return { status: true, message: "User updated successfully." };
+};

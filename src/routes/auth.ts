@@ -4,6 +4,7 @@ import {
   checkAuth,
   checkRoles,
   handleDeleteUser,
+  handleEditUser,
   handleLogin,
   handleRegister,
 } from "../lib/auth";
@@ -144,19 +145,25 @@ router.delete(
 );
 
 router.patch(
-  "/user",
+  "/user/:id",
   checkAuth,
   asyncHandler(
     async (req: Request<any, any, AuthRegisterRequest>, res: Response) => {
       await checkRoles(req.headers.user_roles as string, "create_user");
 
-      const { username, password, role } = req.body;
+      const { id } = req.params;
 
-      if (!username || !password || !role) {
-        throw new ApiError(400, "All fields are required");
+      if (!id || isNaN(Number(id)) || Number(id) === 0) {
+        throw new ApiError(400, "Invalid user id");
       }
 
-      const response = await handleRegister(username, password, role);
+      const { role, password } = req.body;
+
+      if (!role) {
+        throw new ApiError(400, "Role is required");
+      }
+
+      const response = await handleEditUser(id, role, password);
 
       if (!response.status) {
         throw new ApiError(400, response.message || "Failed to set auth key");
