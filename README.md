@@ -57,9 +57,10 @@ Expects: { "username": "user", "password": "password" }
 
 #### [POST] /register
 
-Register a new user account.
+Create a new user account.
 
 Expects: { "username": "user", "password": "password" }
+Required role: create_user
 
 ## System Status
 
@@ -86,6 +87,7 @@ Get a list of all libraries.
 Create a new library. Accept a JSON payload of **name**, **path**, **type**, and **metadata**.
 
 Expects: { "name": "Manga", "path": "D:\\Manga", "type": "manga", "metadata": { "provider": "myanimelist", "apiKey": "optional" } }
+Required role: manage_library
 
 #### [GET] /library/:id
 
@@ -98,18 +100,21 @@ Parameters: [id: libraryId]
 Update library details.
 
 Parameters: [id: libraryId]
+Required role: manage_library
 
 #### [DELETE] /library/:id
 
 Delete the specified library and all its content.
 
 Parameters: [id: libraryId]
+Required role: manage_library
 
 #### [POST] /library/:id/scan
 
 Scan the specified library for new content.
 
 Parameters: [id: libraryId]
+Required role: add_file
 
 #### [GET] /library/:id/scan
 
@@ -130,6 +135,7 @@ Parameters: [id: libraryId]
 Create a new collection. Accepts a JSON payload of **name** (name of collection).
 
 Expects: { "name": "Action Manga" }
+Required role: manage_collections
 
 Parameters: [id: libraryId]
 
@@ -144,18 +150,21 @@ Parameters: [id: libraryId, collectionId: collectionId]
 Delete a collection.
 
 Parameters: [collectionId: collectionId]
+Required role: manage_collections
 
 #### [PATCH] /collections/:collectionId/:fileId
 
 Add a file to a collection.
 
 Parameters: [collectionId: collectionId, fileId: fileId]
+Required role: manage_collections
 
 #### [DELETE] /collections/:collectionId/:fileId
 
 Remove a file from a collection.
 
 Parameters: [collectionId: collectionId, fileId: fileId]
+Required role: manage_collections
 
 ## Series Management
 
@@ -176,12 +185,14 @@ Parameters: [libraryId: libraryId, seriesId: seriesId]
 Update series metadata.
 
 Parameters: [libraryId: libraryId, seriesId: seriesId]
+Required role: edit_metadata
 
 #### [PATCH] /series/:libraryId/:seriesId/cover
 
 Update series cover image. Supports multipart file upload.
 
 Parameters: [libraryId: libraryId, seriesId: seriesId]
+Required role: edit_metadata
 
 ## File Management
 
@@ -301,3 +312,17 @@ Example: `./devourer-server scan-status 1`
 #### ./devourer-server reset-password USERNAME PASSWORD
 
 Set the password of an account to the specified password.
+
+## User Roles
+
+#### admin
+is_admin, add_file, delete_file, edit_metadata, manage_library, create_user
+
+#### moderator
+add_file, delete_file, edit_metadata
+
+#### upload
+add_file
+
+#### user
+no other permissions

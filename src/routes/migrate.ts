@@ -3,7 +3,7 @@ import { Router, Request, Response } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { migrateCalibre } from "../lib/migrate/calibre";
 import { ApiError } from "../types/api";
-import { checkAuth } from "../lib/auth";
+import { checkAuth, checkRoles } from "../lib/auth";
 
 export const migrateRouter = Router();
 
@@ -11,6 +11,8 @@ migrateRouter.post(
   "/migrate/calibre",
   checkAuth,
   asyncHandler(async (req: Request, res: Response) => {
+    await checkRoles(req.headers.user_roles as string, "manage_library");
+
     const { calibrePath, libraryName, libraryMetadataProvider } = req.body;
 
     if (!calibrePath) {

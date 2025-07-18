@@ -54,7 +54,7 @@ export const createCollection = async (
   libraryId: number,
   userId?: number
 ) => {
-  const collection = await prisma.collection.create({
+  await prisma.collection.create({
     data: {
       name: title,
       series: [],

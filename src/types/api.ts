@@ -135,7 +135,7 @@ export interface AuthLoginRequest {
 export interface AuthRegisterRequest {
   username: string;
   password: string;
-  passwordConfirm: string;
+  role: string;
 }
 
 // Error types

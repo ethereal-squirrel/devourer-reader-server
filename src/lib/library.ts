@@ -1120,8 +1120,11 @@ const updateSeriesComplete = (libraryId: number, series: string) => {
   getScanStatusMap()[libraryId].completedSeries++;
 };
 
-export const getRecentlyRead = async () => {
+export const getRecentlyRead = async (userId: number) => {
   const recentlyRead = await prisma.recentlyRead.findMany({
+    where: {
+      user_id: userId,
+    },
     orderBy: {
       id: "desc",
     },
@@ -1134,7 +1137,8 @@ export const getRecentlyRead = async () => {
 export const updateRecentlyRead = async (
   libraryId: number,
   fileId: number,
-  page: number
+  page: number,
+  userId: number
 ) => {
   const library = await prisma.library.findUnique({
     where: { id: libraryId },
@@ -1161,7 +1165,7 @@ export const updateRecentlyRead = async (
   }
 
   await prisma.recentlyRead.deleteMany({
-    where: { library_id: libraryId, file_id: fileId },
+    where: { library_id: libraryId, file_id: fileId, user_id: userId },
   });
 
   await prisma.recentlyRead.create({
@@ -1174,11 +1178,12 @@ export const updateRecentlyRead = async (
       total_pages: file.total_pages || 0,
       volume: file.volume || 0,
       chapter: file.chapter || 0,
-      user_id: 0,
+      user_id: userId,
     },
   });
 
   const existingRead = await prisma.recentlyRead.findMany({
+    where: { user_id: userId },
     select: {
       id: true,
     },
@@ -1189,6 +1194,9 @@ export const updateRecentlyRead = async (
   });
 
   await prisma.recentlyRead.deleteMany({
-    where: { id: { notIn: existingRead.map((read) => read.id) } },
+    where: {
+      id: { notIn: existingRead.map((read) => read.id) },
+      user_id: userId,
+    },
   });
 };

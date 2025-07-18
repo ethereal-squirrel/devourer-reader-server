@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import fs from "fs";
 
-import { checkAuth } from "../lib/auth";
+import { checkAuth, checkRoles } from "../lib/auth";
 import {
   getCollections,
   getCollection,
@@ -66,6 +66,8 @@ libraryRouter.post(
   "/libraries",
   checkAuth,
   asyncHandler(async (req: Request, res: Response) => {
+    await checkRoles(req.headers.user_roles as string, "manage_library");
+
     const { name, path, type, metadata } = req.body;
     if (!name || !path || !type || !metadata) {
       throw new ApiError(400, "Name, path and type are required");
@@ -88,7 +90,9 @@ libraryRouter.get(
   "/recently-read",
   checkAuth,
   asyncHandler(async (req: Request, res: Response) => {
-    const recentlyRead = await getRecentlyRead();
+    const recentlyRead = await getRecentlyRead(
+      Number(req.headers.user_id) || 0
+    );
 
     res.json({
       status: true,
@@ -102,6 +106,7 @@ libraryRouter.get(
   checkAuth,
   asyncHandler(async (req: Request, res: Response<LibraryResponse>) => {
     const libraryId = Number(req.params.id);
+
     if (isNaN(libraryId)) {
       throw new ApiError(400, "Invalid library ID");
     }
@@ -120,6 +125,8 @@ libraryRouter.patch(
   "/library/:id",
   checkAuth,
   asyncHandler(async (req: Request, res: Response<LibraryResponse>) => {
+    await checkRoles(req.headers.user_roles as string, "manage_library");
+
     const libraryId = Number(req.params.id);
     const { name, path, metadata } = req.body;
 
@@ -137,6 +144,8 @@ libraryRouter.delete(
   "/library/:id",
   checkAuth,
   asyncHandler(async (req: Request, res: Response<LibraryResponse>) => {
+    await checkRoles(req.headers.user_roles as string, "manage_library");
+
     const libraryId = Number(req.params.id);
     if (isNaN(libraryId)) {
       throw new ApiError(400, "Invalid library ID");
@@ -160,7 +169,7 @@ libraryRouter.get(
 
     const collections = await getCollections(
       libraryId,
-      req.headers.user_id ? Number(req.headers.user_id) : undefined
+      req.headers.user_id ? Number(req.headers.user_id) : 0
     );
 
     if (!collections) {
@@ -175,6 +184,8 @@ libraryRouter.post(
   "/library/:id/collections",
   checkAuth,
   asyncHandler(async (req: Request, res: Response<CollectionResponse>) => {
+    await checkRoles(req.headers.user_roles as string, "manage_collections");
+
     const libraryId = Number(req.params.id);
     const { title } = req.body;
 
@@ -185,7 +196,7 @@ libraryRouter.post(
     const collection = await createCollection(
       title,
       libraryId,
-      req.headers.user_id ? Number(req.headers.user_id) : undefined
+      req.headers.user_id ? Number(req.headers.user_id) : 0
     );
 
     if (!collection) {
@@ -200,6 +211,8 @@ libraryRouter.delete(
   "/collections/:collectionId",
   checkAuth,
   asyncHandler(async (req: Request, res: Response<CollectionResponse>) => {
+    await checkRoles(req.headers.user_roles as string, "manage_collections");
+
     const collectionId = Number(req.params.collectionId);
 
     if (isNaN(collectionId)) {
@@ -208,7 +221,7 @@ libraryRouter.delete(
 
     const collection = await deleteCollection(
       collectionId,
-      req.headers.user_id ? Number(req.headers.user_id) : undefined
+      req.headers.user_id ? Number(req.headers.user_id) : 0
     );
 
     if (!collection) {
@@ -223,13 +236,15 @@ libraryRouter.patch(
   "/collections/:collectionId/:fileId",
   checkAuth,
   asyncHandler(async (req: Request, res: Response<CollectionResponse>) => {
+    await checkRoles(req.headers.user_roles as string, "manage_collections");
+
     const collectionId = Number(req.params.collectionId);
     const fileId = Number(req.params.fileId);
 
     const collection = await addToCollection(
       collectionId,
       fileId,
-      req.headers.user_id ? Number(req.headers.user_id) : undefined
+      req.headers.user_id ? Number(req.headers.user_id) : 0
     );
 
     if (!collection) {
@@ -244,13 +259,15 @@ libraryRouter.delete(
   "/collections/:collectionId/:fileId",
   checkAuth,
   asyncHandler(async (req: Request, res: Response<CollectionResponse>) => {
+    await checkRoles(req.headers.user_roles as string, "manage_collections");
+
     const collectionId = Number(req.params.collectionId);
     const fileId = Number(req.params.fileId);
 
     const collection = await deleteFromCollection(
       collectionId,
       fileId,
-      req.headers.user_id ? Number(req.headers.user_id) : undefined
+      req.headers.user_id ? Number(req.headers.user_id) : 0
     );
 
     if (!collection) {
@@ -273,7 +290,7 @@ libraryRouter.get(
     const collection = await getCollection(
       libraryId,
       Number(req.params.collectionId),
-      req.headers.user_id ? Number(req.headers.user_id) : undefined
+      req.headers.user_id ? Number(req.headers.user_id) : 0
     );
 
     if (!collection) {
@@ -288,6 +305,8 @@ libraryRouter.post(
   "/library/:id/scan",
   checkAuth,
   asyncHandler(async (req: Request, res: Response<LibraryResponse>) => {
+    await checkRoles(req.headers.user_roles as string, "add_file");
+
     const libraryId = Number(req.params.id);
     if (isNaN(libraryId)) {
       throw new ApiError(400, "Invalid library ID");

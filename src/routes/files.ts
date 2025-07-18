@@ -6,11 +6,13 @@ import { scanEpub } from "../lib/book/bookScanner";
 import { updateRecentlyRead } from "../lib/library";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { ApiError } from "../types/api";
+import { checkAuth } from "../lib/auth";
 
 const router = Router();
 
 router.get(
   "/file/:libraryId/:id",
+  checkAuth,
   asyncHandler(async (req: Request<any, any, any>, res: Response) => {
     const { libraryId, id } = req.params;
 
@@ -163,6 +165,7 @@ router.get(
 
 router.post(
   "/file/:id/scan",
+  checkAuth,
   asyncHandler(async (req: Request<any, any, any>, res: Response) => {
     const { id } = req.params;
 
@@ -190,6 +193,7 @@ router.post(
 
 router.post(
   "/file/:libraryId/:id/mark-as-read",
+  checkAuth,
   asyncHandler(async (req: Request<any, any, any>, res: Response) => {
     const { libraryId, id } = req.params;
 
@@ -225,15 +229,35 @@ router.post(
       throw new ApiError(400, "File not found");
     }
 
-    if (library.type === "book") {
-      await prisma.bookFile.update({
-        where: { id: parseInt(id) },
-        data: { is_read: true },
+    const currentStatus = await prisma.readingStatus.findFirst({
+      where: {
+        file_id: parseInt(id),
+        user_id: parseInt(req.headers.user_id as string),
+        file_type: library.type,
+      },
+    });
+
+    if (currentStatus) {
+      await prisma.readingStatus.update({
+        where: { id: currentStatus.id },
+        data: {
+          current_page:
+            typeof file.total_pages === "number"
+              ? file.total_pages.toString()
+              : file.total_pages,
+        },
       });
     } else {
-      await prisma.mangaFile.update({
-        where: { id: parseInt(id) },
-        data: { is_read: true },
+      await prisma.readingStatus.create({
+        data: {
+          user_id: parseInt(req.headers.user_id as string),
+          file_id: parseInt(id),
+          file_type: library.type,
+          current_page:
+            typeof file.total_pages === "number"
+              ? file.total_pages.toString()
+              : file.total_pages,
+        },
       });
     }
 
@@ -243,6 +267,7 @@ router.post(
 
 router.delete(
   "/file/:libraryId/:id/mark-as-read",
+  checkAuth,
   asyncHandler(async (req: Request<any, any, any>, res: Response) => {
     const { libraryId, id } = req.params;
 
@@ -264,31 +289,13 @@ router.delete(
       throw new ApiError(400, "Library not found");
     }
 
-    if (library.type === "book") {
-      file = await prisma.bookFile.findUnique({
-        where: { id: parseInt(id) },
-      });
-    } else {
-      file = await prisma.mangaFile.findUnique({
-        where: { id: parseInt(id) },
-      });
-    }
-
-    if (!file) {
-      throw new ApiError(400, "File not found");
-    }
-
-    if (library.type === "book") {
-      await prisma.bookFile.update({
-        where: { id: parseInt(id) },
-        data: { is_read: false },
-      });
-    } else {
-      await prisma.mangaFile.update({
-        where: { id: parseInt(id) },
-        data: { is_read: false },
-      });
-    }
+    await prisma.readingStatus.deleteMany({
+      where: {
+        file_id: parseInt(id),
+        user_id: parseInt(req.headers.user_id as string),
+        file_type: library.type,
+      },
+    });
 
     res.json({ status: true });
   })
@@ -296,6 +303,7 @@ router.delete(
 
 router.post(
   "/file/page-event",
+  checkAuth,
   asyncHandler(async (req: Request<any, any, any>, res: Response) => {
     const { libraryId, fileId, page } = req.body;
 
@@ -335,19 +343,57 @@ router.post(
       throw new ApiError(400, "File not found");
     }
 
-    if (library.type === "book") {
-      await prisma.bookFile.update({
-        where: { id: fileId },
-        data: { current_page: page },
+    if (typeof page === "number" && page >= file.total_pages) {
+      await prisma.readingStatus.deleteMany({
+        where: {
+          file_id: fileId,
+          user_id: parseInt(req.headers.user_id as string),
+          file_type: library.type,
+        },
+      });
+
+      await prisma.recentlyRead.deleteMany({
+        where: {
+          file_id: fileId,
+          library_id: parseInt(libraryId),
+          user_id: parseInt(req.headers.user_id as string),
+        },
       });
     } else {
-      await prisma.mangaFile.update({
-        where: { id: fileId },
-        data: { current_page: page },
+      const currentStatus = await prisma.readingStatus.findFirst({
+        where: {
+          file_id: fileId,
+          user_id: parseInt(req.headers.user_id as string),
+          file_type: library.type,
+        },
       });
+
+      if (currentStatus) {
+        await prisma.readingStatus.update({
+          where: { id: currentStatus.id },
+          data: {
+            current_page: typeof page === "number" ? page.toString() : page,
+          },
+        });
+      } else {
+        await prisma.readingStatus.create({
+          data: {
+            user_id: parseInt(req.headers.user_id as string),
+            file_id: fileId,
+            file_type: library.type,
+            current_page: typeof page === "number" ? page.toString() : page,
+          },
+        });
+      }
+
+      updateRecentlyRead(
+        libraryId,
+        fileId,
+        page,
+        parseInt(req.headers.user_id as string)
+      );
     }
 
-    updateRecentlyRead(libraryId, fileId, page);
     res.json({ status: true });
   })
 );
