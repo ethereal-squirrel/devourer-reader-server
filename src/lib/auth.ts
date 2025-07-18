@@ -376,10 +376,13 @@ export const handleEditUser = async (
   });
 
   if (!user) {
+    console.log("User not found.");
     return { status: false, message: "User not found." };
   }
 
   if (user.id === Number(1) && role !== "admin") {
+    console.log("Cannot remove admin role from admin user.");
+
     return {
       status: false,
       message: "Cannot remove admin role from admin user.",
