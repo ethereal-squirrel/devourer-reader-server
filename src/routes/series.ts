@@ -7,16 +7,17 @@ import { prisma } from "../prisma";
 import { checkAuth, checkRoles } from "../lib/auth";
 import { downloadImage, isImage } from "../lib/file";
 import { convertImageDataToWebP } from "../lib/library";
+import { getBook } from "../lib/book/book";
+import { getSeries } from "../lib/manga/series";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { ApiError } from "../types/api";
 
 export const seriesRouter = Router();
 
-// Configure multer for image uploads
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 10 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith("image/")) {
@@ -43,13 +44,22 @@ seriesRouter.get(
     }
 
     if (library.type === "book") {
-      series = await prisma.bookFile.findMany({
-        where: { library_id: library.id },
-      });
+      console.log("Book");
+      console.log(req.headers.user_id);
+      console.log(req.headers.user_id ? Number(req.headers.user_id) : 0);
+      console.log(library.id);
+      console.log(Number(req.params.seriesId));
+      series = await getBook(
+        library.id,
+        Number(req.params.seriesId),
+        req.headers.user_id ? Number(req.headers.user_id) : 0
+      );
     } else {
-      series = await prisma.mangaSeries.findFirst({
-        where: { library_id: library.id },
-      });
+      series = await getSeries(
+        library.id,
+        Number(req.params.seriesId),
+        req.headers.user_id ? Number(req.headers.user_id) : 0
+      );
     }
 
     if (!series) {
