@@ -291,7 +291,8 @@ export async function scanCalibreLibrary(
 export async function migrateCalibre(
   calibreLibraryPath: string,
   libraryName: string,
-  libraryMetadataProvider: string
+  libraryMetadataProvider: string,
+  userId: number
 ): Promise<void> {
   const dbPath = path.join(calibreLibraryPath, "metadata.db");
 
@@ -335,7 +336,7 @@ export async function migrateCalibre(
       console.log(`Found ${totalCount} books in calibre library`);
 
       for (const book of books) {
-        await convertToDevourer(book, library.id, calibreLibraryPath);
+        await convertToDevourer(book, library.id, calibreLibraryPath, userId);
       }
     }
   } catch (err) {
@@ -349,7 +350,8 @@ export async function migrateCalibre(
 const convertToDevourer = async (
   calibreBook: CalibreBook,
   libraryId: number,
-  calibreLibraryPath: string
+  calibreLibraryPath: string,
+  userId: number
 ) => {
   let book = {
     title: calibreBook.title,
@@ -520,6 +522,17 @@ const convertToDevourer = async (
     } catch (err) {
       console.error(`Error converting cover to webp:`, err);
     }
+  }
+
+  for (const tag of book.tags) {
+    await prisma.userTag.create({
+      data: {
+        user_id: userId,
+        file_type: "book",
+        file_id: newBook.id,
+        tag: tag,
+      },
+    });
   }
 
   console.log(`Migrated book ${book.title} to Devourer.`);
