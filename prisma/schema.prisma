@@ -113,6 +113,22 @@ model ReadingStatus {
   current_page String
 }
 
+model UserRating {
+  id        Int    @id @default(autoincrement())
+  user_id   Int
+  file_type String
+  file_id   Int
+  rating    Int
+}
+
+model UserTag {
+  id        Int    @id @default(autoincrement())
+  user_id   Int
+  file_type String
+  file_id   Int
+  tag       String
+}
+
 model Collection {
   id         Int    @id @default(autoincrement())
   library_id Int
