@@ -18,7 +18,7 @@ export const getCollection = async (
   collectionId: number,
   userId?: number
 ) => {
-  const library = await getLibrary(libraryId.toString());
+  const library = await getLibrary(libraryId.toString(), userId ?? 0);
 
   if (!library) {
     throw new ApiError(404, "Library not found");
@@ -28,7 +28,14 @@ export const getCollection = async (
     where: {
       library_id: libraryId,
       id: collectionId,
-      user_id: userId ?? 0,
+      OR: [
+        {
+          user_id: userId ?? 0,
+        },
+        {
+          user_id: 0,
+        },
+      ],
     },
   })) as any;
 

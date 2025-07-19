@@ -30,7 +30,8 @@ migrateRouter.post(
     migrateCalibre(
       calibrePath as string,
       libraryName as string,
-      libraryMetadataProvider as string
+      libraryMetadataProvider as string,
+      req.headers.user_id ? Number(req.headers.user_id) : 0
     );
     res.json({ status: true });
   })

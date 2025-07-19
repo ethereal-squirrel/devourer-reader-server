@@ -34,7 +34,7 @@ if (process.pkg) {
 
 dotenv.config();
 
-const DATABASE_VERSION = 7;
+const DATABASE_VERSION = 8;
 
 export const app: Express = express();
 const port = process.env.PORT || 9024;

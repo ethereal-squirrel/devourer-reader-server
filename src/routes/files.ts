@@ -3,7 +3,7 @@ import fs from "fs";
 
 import { prisma } from "../prisma";
 import { scanEpub } from "../lib/book/bookScanner";
-import { updateRecentlyRead } from "../lib/library";
+import { checkLibrary, updateRecentlyRead } from "../lib/library";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { ApiError } from "../types/api";
 import { checkAuth } from "../lib/auth";
@@ -26,13 +26,7 @@ router.get(
 
     let file: any = null;
 
-    const library = await prisma.library.findUnique({
-      where: { id: parseInt(libraryId) },
-    });
-
-    if (!library) {
-      throw new ApiError(400, "Library not found");
-    }
+    const library = await checkLibrary(req.params.libraryId);
 
     if (library.type === "book") {
       file = await prisma.bookFile.findUnique({
@@ -101,13 +95,7 @@ router.get(
 
     let file: any = null;
 
-    const library = await prisma.library.findUnique({
-      where: { id: parseInt(libraryId) },
-    });
-
-    if (!library) {
-      throw new ApiError(400, "Library not found");
-    }
+    const library = await checkLibrary(req.params.libraryId);
 
     if (library.type === "book") {
       file = await prisma.bookFile.findUnique({
@@ -207,13 +195,7 @@ router.post(
 
     let file: any = null;
 
-    const library = await prisma.library.findUnique({
-      where: { id: parseInt(libraryId) },
-    });
-
-    if (!library) {
-      throw new ApiError(400, "Library not found");
-    }
+    const library = await checkLibrary(req.params.libraryId);
 
     if (library.type === "book") {
       file = await prisma.bookFile.findUnique({
@@ -279,15 +261,7 @@ router.delete(
       throw new ApiError(400, "Library ID is required");
     }
 
-    let file: any = null;
-
-    const library = await prisma.library.findUnique({
-      where: { id: parseInt(libraryId) },
-    });
-
-    if (!library) {
-      throw new ApiError(400, "Library not found");
-    }
+    const library = await checkLibrary(req.params.libraryId);
 
     await prisma.readingStatus.deleteMany({
       where: {
@@ -321,13 +295,7 @@ router.post(
 
     let file: any = null;
 
-    const library = await prisma.library.findUnique({
-      where: { id: parseInt(libraryId) },
-    });
-
-    if (!library) {
-      throw new ApiError(400, "Library not found");
-    }
+    const library = await checkLibrary(req.params.libraryId);
 
     if (library.type === "book") {
       file = await prisma.bookFile.findUnique({

@@ -206,7 +206,26 @@ export const getLibraries = async () => {
   return librariesData;
 };
 
-export const getLibrary = async (id: string) => {
+export const checkLibrary = async (id: string) => {
+  const library = await prisma.library.findFirst({
+    where: {
+      id: parseInt(id),
+    },
+  });
+
+  if (library) {
+    return {
+      id: library.id,
+      name: library.name,
+      path: library.path,
+      type: library.type,
+    };
+  } else {
+    throw new ApiError(404, "Library not found");
+  }
+};
+
+export const getLibrary = async (id: string, userId: number) => {
   const libraryData = await prisma.library.findFirst({
     where: {
       id: parseInt(id),
@@ -243,8 +262,34 @@ export const getLibrary = async (id: string) => {
   const collections = await prisma.collection.findMany({
     where: {
       library_id: libraryData.id,
+      OR: [
+        {
+          user_id: userId,
+        },
+        {
+          user_id: 0,
+        },
+      ],
     },
   });
+
+  const userRatings = await prisma.userRating.findMany({
+    where: {
+      user_id: userId,
+      file_type: libraryData.type,
+      file_id: { in: library.series.map((s: any) => s.id) },
+    },
+  });
+
+  for (const series of library.series) {
+    const userRating = userRatings.find((r: any) => r.file_id === series.id);
+
+    if (userRating) {
+      series.rating = userRating.rating;
+    } else {
+      series.rating = null;
+    }
+  }
 
   library.collections = collections;
 

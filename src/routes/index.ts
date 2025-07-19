@@ -7,6 +7,8 @@ import filesRouter from "./files";
 import imagesRouter from "./images";
 import clientRouter from "./client";
 import opdsRouter from "./opds";
+import ratingsRouter from "./ratings";
+import tagsRouter from "./tags";
 import migrateRouter from "./migrate";
 
 const router = Router();
@@ -27,6 +29,8 @@ router.use(seriesRouter);
 router.use(filesRouter);
 router.use(imagesRouter);
 router.use(clientRouter);
+router.use(ratingsRouter);
+router.use(tagsRouter);
 router.use(migrateRouter);
 router.use("/opds", opdsRouter);
 

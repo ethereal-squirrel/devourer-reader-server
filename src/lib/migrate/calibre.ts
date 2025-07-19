@@ -23,6 +23,11 @@ export interface CalibreBook {
   tags: CalibreTag[];
   files: CalibreBookFile[];
   metadata: CalibreMetadata | null;
+  ratings: CalibreRating[];
+}
+
+export interface CalibreRating {
+  rating: number;
 }
 
 export interface CalibreAuthor {
@@ -188,6 +193,16 @@ export async function getBooks(
         [book.id]
       );
 
+      const ratings = await dbAll(
+        `
+        SELECT ratings.rating
+        FROM ratings
+        JOIN books_ratings_link brl ON ratings.id = brl.rating
+        WHERE brl.book = ?
+        `,
+        [book.id]
+      );
+
       return {
         ...book,
         authors: authors as CalibreAuthor[],
@@ -195,6 +210,7 @@ export async function getBooks(
         tags: tags as CalibreTag[],
         files,
         metadata,
+        ratings: ratings as string[],
       };
     });
 
@@ -291,7 +307,8 @@ export async function scanCalibreLibrary(
 export async function migrateCalibre(
   calibreLibraryPath: string,
   libraryName: string,
-  libraryMetadataProvider: string
+  libraryMetadataProvider: string,
+  userId: number
 ): Promise<void> {
   const dbPath = path.join(calibreLibraryPath, "metadata.db");
 
@@ -335,7 +352,7 @@ export async function migrateCalibre(
       console.log(`Found ${totalCount} books in calibre library`);
 
       for (const book of books) {
-        await convertToDevourer(book, library.id, calibreLibraryPath);
+        await convertToDevourer(book, library.id, calibreLibraryPath, userId);
       }
     }
   } catch (err) {
@@ -349,7 +366,8 @@ export async function migrateCalibre(
 const convertToDevourer = async (
   calibreBook: CalibreBook,
   libraryId: number,
-  calibreLibraryPath: string
+  calibreLibraryPath: string,
+  userId: number
 ) => {
   let book = {
     title: calibreBook.title,
@@ -411,7 +429,7 @@ const convertToDevourer = async (
   }
 
   const newBook = await prisma.bookFile.create({
-    data: book,
+    data: { ...book, tags: [] as string[] },
   });
 
   const folderPath = path.join(
@@ -519,6 +537,30 @@ const convertToDevourer = async (
       }
     } catch (err) {
       console.error(`Error converting cover to webp:`, err);
+    }
+  }
+
+  for (const tag of book.tags) {
+    await prisma.userTag.create({
+      data: {
+        user_id: userId,
+        file_type: "book",
+        file_id: newBook.id,
+        tag: tag,
+      },
+    });
+  }
+
+  if (calibreBook.ratings) {
+    for (const r of calibreBook.ratings) {
+      await prisma.userRating.create({
+        data: {
+          user_id: userId,
+          file_type: "book",
+          file_id: newBook.id,
+          rating: r.rating > 0 ? r.rating / 2 : 1,
+        },
+      });
     }
   }
 
