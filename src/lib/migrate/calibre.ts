@@ -23,6 +23,11 @@ export interface CalibreBook {
   tags: CalibreTag[];
   files: CalibreBookFile[];
   metadata: CalibreMetadata | null;
+  ratings: CalibreRating[];
+}
+
+export interface CalibreRating {
+  rating: number;
 }
 
 export interface CalibreAuthor {
@@ -188,6 +193,16 @@ export async function getBooks(
         [book.id]
       );
 
+      const ratings = await dbAll(
+        `
+        SELECT ratings.rating
+        FROM ratings
+        JOIN books_ratings_link brl ON ratings.id = brl.rating
+        WHERE brl.book = ?
+        `,
+        [book.id]
+      );
+
       return {
         ...book,
         authors: authors as CalibreAuthor[],
@@ -195,6 +210,7 @@ export async function getBooks(
         tags: tags as CalibreTag[],
         files,
         metadata,
+        ratings: ratings as string[],
       };
     });
 
@@ -413,7 +429,7 @@ const convertToDevourer = async (
   }
 
   const newBook = await prisma.bookFile.create({
-    data: book,
+    data: { ...book, tags: [] as string[] },
   });
 
   const folderPath = path.join(
@@ -533,6 +549,19 @@ const convertToDevourer = async (
         tag: tag,
       },
     });
+  }
+
+  if (calibreBook.ratings) {
+    for (const r of calibreBook.ratings) {
+      await prisma.userRating.create({
+        data: {
+          user_id: userId,
+          file_type: "book",
+          file_id: newBook.id,
+          rating: r.rating > 0 ? r.rating / 2 : 1,
+        },
+      });
+    }
   }
 
   console.log(`Migrated book ${book.title} to Devourer.`);
