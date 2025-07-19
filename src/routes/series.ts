@@ -5,7 +5,7 @@ import multer from "multer";
 
 import { prisma } from "../prisma";
 import { checkAuth, checkRoles } from "../lib/auth";
-import { downloadImage, isImage } from "../lib/file";
+import { downloadImage } from "../lib/file";
 import { convertImageDataToWebP } from "../lib/library";
 import { getBook } from "../lib/book/book";
 import { getSeries } from "../lib/manga/series";
@@ -44,11 +44,6 @@ seriesRouter.get(
     }
 
     if (library.type === "book") {
-      console.log("Book");
-      console.log(req.headers.user_id);
-      console.log(req.headers.user_id ? Number(req.headers.user_id) : 0);
-      console.log(library.id);
-      console.log(Number(req.params.seriesId));
       series = await getBook(
         library.id,
         Number(req.params.seriesId),

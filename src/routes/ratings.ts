@@ -25,7 +25,10 @@ ratingsRouter.post(
       throw new ApiError(400, "Invalid library ID or entity ID");
     }
 
-    const library = await getLibrary(libraryId);
+    const library = await getLibrary(
+      libraryId,
+      req.headers.user_id ? Number(req.headers.user_id) : 0
+    );
 
     if (!library) {
       throw new ApiError(404, "Library not found");

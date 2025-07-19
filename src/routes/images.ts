@@ -18,7 +18,7 @@ imagesRouter.get(
       throw new ApiError(400, "Invalid library ID or entity ID");
     }
 
-    const library = await getLibrary(libraryId);
+    const library = await getLibrary(libraryId, 0);
 
     if (!library) {
       throw new ApiError(404, "Library not found");
@@ -93,7 +93,7 @@ imagesRouter.get(
       throw new ApiError(400, "Invalid library ID, series ID or entity ID");
     }
 
-    const library = await getLibrary(libraryId);
+    const library = await getLibrary(libraryId, 0);
 
     if (!library) {
       throw new ApiError(404, "Library not found");

@@ -111,7 +111,10 @@ libraryRouter.get(
       throw new ApiError(400, "Invalid library ID");
     }
 
-    const library = await getLibrary(req.params.id);
+    const library = await getLibrary(
+      req.params.id,
+      req.headers.user_id ? Number(req.headers.user_id) : 0
+    );
 
     if (!library) {
       throw new ApiError(404, "Library not found");
