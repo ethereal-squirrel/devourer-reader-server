@@ -6,7 +6,7 @@ import multer from "multer";
 import { prisma } from "../prisma";
 import { checkAuth, checkRoles } from "../lib/auth";
 import { downloadImage } from "../lib/file";
-import { convertImageDataToWebP } from "../lib/library";
+import { checkLibrary, convertImageDataToWebP } from "../lib/library";
 import { getBook } from "../lib/book/book";
 import { getSeries } from "../lib/manga/series";
 import { asyncHandler } from "../middleware/asyncHandler";
@@ -33,15 +33,8 @@ seriesRouter.get(
   checkAuth,
   asyncHandler(async (req: Request, res: Response) => {
     let series: any = null;
-    const library = await prisma.library.findFirst({
-      where: {
-        id: Number(req.params.libraryId),
-      },
-    });
 
-    if (!library) {
-      throw new ApiError(404, "Library not found");
-    }
+    const library = await checkLibrary(req.params.libraryId);
 
     if (library.type === "book") {
       series = await getBook(
@@ -72,15 +65,7 @@ seriesRouter.get(
   "/series/:libraryId/:seriesId/files",
   checkAuth,
   asyncHandler(async (req: Request, res: Response) => {
-    const library = await prisma.library.findFirst({
-      where: {
-        id: Number(req.params.libraryId),
-      },
-    });
-
-    if (!library) {
-      throw new ApiError(404, "Library not found");
-    }
+    const library = await checkLibrary(req.params.libraryId);
 
     const series = await prisma.mangaSeries.findFirst({
       where: { library_id: library.id, id: Number(req.params.seriesId) },
@@ -134,15 +119,7 @@ seriesRouter.patch(
       throw new ApiError(400, "Metadata is required");
     }
 
-    const library = await prisma.library.findFirst({
-      where: {
-        id: Number(req.params.libraryId),
-      },
-    });
-
-    if (!library) {
-      throw new ApiError(404, "Library not found");
-    }
+    const library = await checkLibrary(req.params.libraryId);
 
     if (library.type === "book") {
       const book = (await prisma.bookFile.findFirst({
@@ -192,15 +169,7 @@ seriesRouter.patch(
       throw new ApiError(400, "Cover image file or URL is required");
     }
 
-    const library = await prisma.library.findFirst({
-      where: {
-        id: Number(req.params.libraryId),
-      },
-    });
-
-    if (!library) {
-      throw new ApiError(404, "Library not found");
-    }
+    const library = await checkLibrary(req.params.libraryId);
 
     if (library.type === "book") {
       const book = (await prisma.bookFile.findFirst({

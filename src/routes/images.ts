@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 
 import { prisma } from "../prisma";
-import { getLibrary } from "../lib/library";
+import { checkLibrary, getLibrary } from "../lib/library";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { ApiError } from "../types/api";
 
@@ -18,11 +18,7 @@ imagesRouter.get(
       throw new ApiError(400, "Invalid library ID or entity ID");
     }
 
-    const library = await getLibrary(libraryId, 0);
-
-    if (!library) {
-      throw new ApiError(404, "Library not found");
-    }
+    const library = await checkLibrary(req.params.libraryId);
 
     if (library.type === "book") {
       const file = await prisma.bookFile.findUnique({
@@ -93,11 +89,7 @@ imagesRouter.get(
       throw new ApiError(400, "Invalid library ID, series ID or entity ID");
     }
 
-    const library = await getLibrary(libraryId, 0);
-
-    if (!library) {
-      throw new ApiError(404, "Library not found");
-    }
+    const library = await checkLibrary(req.params.libraryId);
 
     const series = await prisma.mangaSeries.findUnique({
       where: {

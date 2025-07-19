@@ -11,5 +11,5 @@ CREATE TABLE "UserTag" (
     "user_id" INTEGER NOT NULL,
     "file_type" TEXT NOT NULL,
     "file_id" INTEGER NOT NULL,
-    "rating" TEXT NOT NULL
+    "tag" TEXT NOT NULL
 );

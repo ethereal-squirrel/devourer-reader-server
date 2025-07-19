@@ -24,5 +24,15 @@ export const getSeries = async (
     series.rating = null;
   }
 
+  const userTags = await prisma.userTag.findMany({
+    where: { user_id: userId, file_type: "manga", file_id: seriesId },
+  });
+
+  if (userTags.length > 0) {
+    series.tags = userTags.map((tag) => tag.tag);
+  } else {
+    series.tags = [];
+  }
+
   return series;
 };

@@ -150,6 +150,7 @@ libraryRouter.delete(
     await checkRoles(req.headers.user_roles as string, "manage_library");
 
     const libraryId = Number(req.params.id);
+
     if (isNaN(libraryId)) {
       throw new ApiError(400, "Invalid library ID");
     }

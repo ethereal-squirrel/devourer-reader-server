@@ -206,6 +206,25 @@ export const getLibraries = async () => {
   return librariesData;
 };
 
+export const checkLibrary = async (id: string) => {
+  const library = await prisma.library.findFirst({
+    where: {
+      id: parseInt(id),
+    },
+  });
+
+  if (library) {
+    return {
+      id: library.id,
+      name: library.name,
+      path: library.path,
+      type: library.type,
+    };
+  } else {
+    throw new ApiError(404, "Library not found");
+  }
+};
+
 export const getLibrary = async (id: string, userId: number) => {
   const libraryData = await prisma.library.findFirst({
     where: {

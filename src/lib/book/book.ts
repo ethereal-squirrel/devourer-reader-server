@@ -24,5 +24,15 @@ export const getBook = async (
     book.rating = null;
   }
 
+  const userTags = await prisma.userTag.findMany({
+    where: { user_id: userId, file_type: "book", file_id: bookId },
+  });
+
+  if (userTags.length > 0) {
+    book.tags = userTags.map((tag) => tag.tag);
+  } else {
+    book.tags = [];
+  }
+
   return book;
 };

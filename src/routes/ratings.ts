@@ -1,12 +1,10 @@
 import { Router, Request, Response } from "express";
-import fs from "fs";
-import path from "path";
 
-import { prisma } from "../prisma";
-import { getLibrary } from "../lib/library";
+import { checkLibrary } from "../lib/library";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { ApiError } from "../types/api";
 import { checkAuth } from "../lib/auth";
+import { rateEntity } from "../lib/ratings";
 
 export const ratingsRouter = Router();
 
@@ -25,38 +23,13 @@ ratingsRouter.post(
       throw new ApiError(400, "Invalid library ID or entity ID");
     }
 
-    const library = await getLibrary(
-      libraryId,
-      req.headers.user_id ? Number(req.headers.user_id) : 0
+    const library = await checkLibrary(req.params.libraryId);
+    await rateEntity(
+      library.type,
+      Number(entityId),
+      req.headers.user_id ? Number(req.headers.user_id) : 0,
+      rating
     );
-
-    if (!library) {
-      throw new ApiError(404, "Library not found");
-    }
-
-    const existingRating = await prisma.userRating.findFirst({
-      where: {
-        user_id: req.headers.user_id ? Number(req.headers.user_id) : 0,
-        file_type: library.type,
-        file_id: Number(entityId),
-      },
-    });
-
-    if (existingRating) {
-      await prisma.userRating.update({
-        where: { id: existingRating.id },
-        data: { rating: req.body.rating },
-      });
-    } else {
-      await prisma.userRating.create({
-        data: {
-          user_id: req.headers.user_id ? Number(req.headers.user_id) : 0,
-          file_type: library.type,
-          file_id: Number(entityId),
-          rating: req.body.rating,
-        },
-      });
-    }
 
     res.json({
       status: true,
