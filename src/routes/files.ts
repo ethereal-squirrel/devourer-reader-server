@@ -295,7 +295,7 @@ router.post(
 
     let file: any = null;
 
-    const library = await checkLibrary(req.params.libraryId);
+    const library = await checkLibrary(libraryId);
 
     if (library.type === "book") {
       file = await prisma.bookFile.findUnique({
