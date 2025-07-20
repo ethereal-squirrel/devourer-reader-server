@@ -14,10 +14,7 @@ metadataRouter.get(
 
     res.status(201).json({
       status: true,
-      providers: {
-        book: providers.book.map((provider: any) => provider.name),
-        manga: providers.manga.map((provider: any) => provider.name),
-      },
+      providers,
     });
   })
 );

@@ -5,7 +5,8 @@
   "properties": {
     "library_type": "manga",
     "results_entity": "results",
-    "search_fallback": "name"
+    "search_fallback": "name",
+    "key_required": true
   },
   "endpoints": {
     "title": "https://comicvine.gamespot.com/api/volumes/?api_key={{apiKey}}&format=json&filter=name:{{query}}"
