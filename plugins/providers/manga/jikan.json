@@ -1,0 +1,32 @@
+{
+  "name": "Jikan (MyAnimeList)",
+  "type": "metadata",
+  "properties": {
+    "library_type": "manga",
+    "results_entity": "data"
+  },
+  "endpoints": {
+    "id": "https://api.jikan.moe/v4/manga/{{query}}",
+    "title": "https://api.jikan.moe/v4/manga/?q={{query}}"
+  },
+  "parser": {
+    "metadata_id": "mal_id",
+    "metadata_provider": "jikan",
+    "title": "",
+    "titles": "titles",
+    "synopsis": "synopsis",
+    "background": "background",
+    "coverImage": "images.webp.image_url",
+    "authors": { "key": "authors", "value": "name" },
+    "demographics": { "key": "demographics", "value": "name" },
+    "genres": { "key": "genres", "value": "name" },
+    "themes": { "key": "themes", "value": "name" },
+    "score": "score",
+    "url": "url",
+    "total_volumes": "volumes",
+    "total_chapters": "chapters",
+    "published_from": "published.from",
+    "published_to": "published.to",
+    "status": "status"
+  }
+}
