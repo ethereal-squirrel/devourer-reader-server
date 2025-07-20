@@ -12,6 +12,7 @@ import { PrismaClient } from "../generated/prisma/client";
 import { errorHandler } from "./middleware/errorHandler";
 import { resetPassword } from "./lib/auth";
 import { startWatcher } from "./lib/watcher";
+import { searchMetadata } from "./lib/metadata";
 
 declare global {
   namespace NodeJS {
@@ -323,6 +324,8 @@ async function startApp() {
   try {
     await initializeDatabase();
     await startWatcher();
+
+    await searchMetadata("jikan", "title", "Sword Art Online");
 
     app.listen(port, () => {
       console.log(`[Server] Devourer is running on port ${port}`);

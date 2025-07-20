@@ -1,9 +1,12 @@
 {
+  "key": "jikan",
   "name": "Jikan (MyAnimeList)",
   "type": "metadata",
   "properties": {
     "library_type": "manga",
-    "results_entity": "data"
+    "results_entity": "data",
+    "search_array": { "key": "titles", "value": "title" },
+    "search_fallback": "title"
   },
   "endpoints": {
     "id": "https://api.jikan.moe/v4/manga/{{query}}",
@@ -11,7 +14,7 @@
   },
   "parser": {
     "metadata_id": "mal_id",
-    "metadata_provider": "jikan",
+    "metadata_provider": { "key": "static", "value": "jikan" },
     "title": "",
     "titles": "titles",
     "synopsis": "synopsis",
