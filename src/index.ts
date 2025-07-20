@@ -325,7 +325,10 @@ async function startApp() {
     await initializeDatabase();
     await startWatcher();
 
-    await searchMetadata("jikan", "title", "Sword Art Online");
+    //await searchMetadata("jikan", "title", "Sword Art Online");
+    //await searchMetadata("googlebooks", "title", "Sword Art Online");
+    //await searchMetadata("openlibrary", "title", "return of the king");
+    //await searchMetadata("comicvine", "title", "Spider-Man");
 
     app.listen(port, () => {
       console.log(`[Server] Devourer is running on port ${port}`);

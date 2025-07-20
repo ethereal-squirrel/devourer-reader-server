@@ -31,36 +31,36 @@ const loadJsonFiles = (dir: string) => {
 export const searchMetadata = async (
   target: string,
   by: string,
-  value: string
+  value: string,
+  apiKey?: string
 ) => {
   await loadMetadataProviders();
 
   const provider = providers[target];
-  const url = provider.endpoints[by];
+  let url = provider.endpoints[by].replace("{{query}}", value);
 
-  const response = await fetch(url.replace("{{query}}", value));
+  if (apiKey && provider.endpoints[by].includes("{{apiKey}}")) {
+    url = url.replace("{{apiKey}}", apiKey);
+  }
+
+  const response = await fetch(url);
   const data = await response.json();
 
-  if (data[provider.properties.results_entity]) {
+  const resultsData = getNestedProperty(
+    data,
+    provider.properties.results_entity
+  );
+  if (resultsData) {
     let selectedEntity = null;
-    const results = data[provider.properties.results_entity];
+    selectedEntity = await iterateResults(resultsData, value, provider.key);
 
-    if (provider.properties.library_type === "manga") {
-      selectedEntity = await iterateManga(results, value, provider.key);
-    } else {
-      //
-    }
-
-    // Parse result.
-
-    console.log("Metadata: ", selectedEntity);
     return selectedEntity;
   } else {
     return null;
   }
 };
 
-export const iterateManga = async (
+export const iterateResults = async (
   results: any[],
   query: string,
   providerKey: string,
@@ -68,19 +68,19 @@ export const iterateManga = async (
 ) => {
   let selectedEntity = null;
 
+  if (!results || results.length === 0) {
+    return null;
+  }
+
   for (const result of results) {
     if (by) {
       if (result[by].toLowerCase() === query.toLowerCase()) {
-        console.log("Found manga by by: ", result);
         selectedEntity = result;
         break;
       }
     } else {
       if (providers[providerKey].properties.search_array) {
         if (result[providers[providerKey].properties.search_array.key]) {
-          console.log(
-            result[providers[providerKey].properties.search_array.key]
-          );
           if (
             result[providers[providerKey].properties.search_array.key].some(
               (t: any) => t.title.toLowerCase() === query.toLowerCase()
@@ -109,28 +109,94 @@ export const iterateManga = async (
     selectedEntity = results[0];
   }
 
-  const metadata = parseMetadata(selectedEntity, providers[providerKey].parser);
-  console.log("Metadata: ", metadata);
+  const metadata = parseMetadata(
+    selectedEntity,
+    providers[providerKey].parser,
+    providers[providerKey].postProcessing
+  );
 
   return metadata;
 };
 
-export const parseMetadata = (data: any, parser: any) => {
+const getNestedProperty = (obj: any, path: string): any => {
+  if (!path) return null;
+
+  const keys = path.split(".");
+  let current = obj;
+
+  for (const key of keys) {
+    if (
+      current === null ||
+      current === undefined ||
+      typeof current !== "object"
+    ) {
+      return null;
+    }
+    current = current[key];
+  }
+
+  return current === undefined ? null : current;
+};
+
+export const parseMetadata = (data: any, parser: any, postProcessing?: any) => {
   let metadata = {} as any;
 
   const parserKeys = Object.keys(parser);
 
   for (const key of parserKeys) {
-    if (typeof parser[key] === "object") {
+    if (typeof parser[key] === "object" && parser[key] !== null) {
       if (parser[key].key === "static") {
         metadata[key] = parser[key].value;
       } else {
-        metadata[key] = data[parser[key].key].map(
-          (t: any) => t[parser[key].value]
-        );
+        const nestedData = getNestedProperty(data, parser[key].key);
+        if (nestedData && Array.isArray(nestedData)) {
+          metadata[key] = nestedData.map((t: any) => {
+            const nestedValue = getNestedProperty(t, parser[key].value);
+            return nestedValue !== null ? nestedValue : t[parser[key].value];
+          });
+        } else {
+          metadata[key] = nestedData;
+        }
       }
+    } else if (parser[key] === null) {
+      metadata[key] = null;
     } else {
-      metadata[key] = data[parser[key]];
+      const nestedValue = getNestedProperty(data, parser[key]);
+      metadata[key] = nestedValue !== null ? nestedValue : data[parser[key]];
+    }
+  }
+
+  if (postProcessing && typeof postProcessing === "object") {
+    const postProcessingKeys = Object.keys(postProcessing);
+
+    for (const key of postProcessingKeys) {
+      const config = postProcessing[key];
+
+      if (config && config.action && metadata.hasOwnProperty(key)) {
+        switch (config.action) {
+          case "convertToArray":
+            if (
+              metadata[key] !== null &&
+              metadata[key] !== undefined &&
+              !Array.isArray(metadata[key])
+            ) {
+              metadata[key] = [metadata[key]];
+            }
+            break;
+          case "convertToIndustryIdentifier":
+            if (metadata[key]) {
+              if (!metadata["identifiers"]) {
+                metadata["identifiers"] = [];
+              }
+
+              metadata["identifiers"].push({
+                type: key,
+                value: metadata[key],
+              });
+            }
+            break;
+        }
+      }
     }
   }
 

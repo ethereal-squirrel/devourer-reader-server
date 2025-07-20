@@ -1,4 +1,4 @@
-import { retrieveMetadata as retrieve } from "@devourer-reader/shared";
+import { searchMetadata as search } from "../metadata";
 
 import { googleBooksLimiter, openLibraryLimiter } from "../rateLimit";
 import { prisma } from "../../prisma";
@@ -36,7 +36,7 @@ export const createBookSeriesPayload = async (
 
       if (library.metadata?.provider === "googlebooks") {
         metadata = await googleBooksLimiter.schedule(() =>
-          retrieve(
+          search(
             "googlebooks",
             by as "id" | "title" | "isbn_13" | "isbn_10",
             isbn || series
@@ -48,7 +48,7 @@ export const createBookSeriesPayload = async (
         }
 
         metadata = await openLibraryLimiter.schedule(() =>
-          retrieve(
+          search(
             "openlibrary",
             by as "id" | "title" | "isbn_13" | "isbn_10",
             isbn || series
