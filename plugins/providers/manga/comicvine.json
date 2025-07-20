@@ -1,0 +1,42 @@
+{
+  "key": "comicvine",
+  "name": "ComicVine",
+  "type": "metadata",
+  "properties": {
+    "library_type": "manga",
+    "results_entity": "results",
+    "search_fallback": "name",
+    "key_required": true
+  },
+  "endpoints": {
+    "title": "https://comicvine.gamespot.com/api/volumes/?api_key={{apiKey}}&format=json&filter=name:{{query}}"
+  },
+  "parser": {
+    "metadata_id": "id",
+    "metadata_provider": { "key": "static", "value": "comicvine" },
+    "title": "name",
+    "titles": "name",
+    "synopsis": "description",
+    "background": "description",
+    "coverImage": "image.medium_url",
+    "authors": "publisher.name",
+    "demographics": null,
+    "genres": null,
+    "themes": null,
+    "score": null,
+    "url": "api_detail_url",
+    "total_volumes": null,
+    "total_chapters": "count_of_issues",
+    "published_from": "start_year",
+    "published_to": "end_year",
+    "status": null
+  },
+  "postProcessing": {
+    "authors": {
+      "action": "convertToArray"
+    },
+    "titles": {
+      "action": "convertToArray"
+    }
+  }
+}

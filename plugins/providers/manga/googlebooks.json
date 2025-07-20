@@ -1,0 +1,38 @@
+{
+  "key": "googlebooks",
+  "name": "Google Books",
+  "type": "metadata",
+  "properties": {
+    "library_type": "book",
+    "results_entity": "items",
+    "search_array": { "key": "industryIdentifiers", "value": "identifier" },
+    "search_fallback": "title"
+  },
+  "endpoints": {
+    "id": "https://www.googleapis.com/books/v1/volumes?q=isbn:{{query}}",
+    "title": "https://www.googleapis.com/books/v1/volumes?q={{query}}"
+  },
+  "parser": {
+    "metadata_provider": { "key": "static", "value": "googlebooks" },
+    "title": "volumeInfo.title",
+    "oclc_numbers": null,
+    "work_key": null,
+    "key": null,
+    "dewey_decimal_class": null,
+    "description": "volumeInfo.description",
+    "authors": "volumeInfo.authors",
+    "genres": "volumeInfo.categories",
+    "publishers": "volumeInfo.publisher",
+    "identifiers": "volumeInfo.industryIdentifiers",
+    "subtitle": "volumeInfo.subtitle",
+    "number_of_pages": "volumeInfo.pageCount",
+    "cover": "volumeInfo.imageLinks.thumbnail",
+    "subjects": "volumeInfo.categories",
+    "provider": { "key": "static", "value": "googlebooks" }
+  },
+  "postProcessing": {
+    "publishers": {
+      "action": "convertToArray"
+    }
+  }
+}

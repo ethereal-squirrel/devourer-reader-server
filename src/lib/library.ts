@@ -371,6 +371,27 @@ export const deleteLibrary = async (id: number) => {
     where: { library_id: id },
   });
 
+  await prisma.userRating.deleteMany({
+    where: {
+      file_type: library.type,
+      file_id: { in: folderIds },
+    },
+  });
+
+  await prisma.recentlyRead.deleteMany({
+    where: {
+      library_id: id,
+      file_id: { in: folderIds },
+    },
+  });
+
+  await prisma.readingStatus.deleteMany({
+    where: {
+      file_type: library.type,
+      file_id: { in: folderIds },
+    },
+  });
+
   await prisma.library.delete({
     where: { id },
   });

@@ -1,4 +1,4 @@
-import { retrieveMetadata as retrieve } from "@devourer-reader/shared";
+import { searchMetadata as search } from "../metadata";
 
 import { jikanLimiter, comicVineLimiter } from "../rateLimit";
 
@@ -17,11 +17,11 @@ export const createSeriesPayload = async (
     if (retrieveMetadata) {
       if (provider === "comicvine") {
         metadata = await comicVineLimiter.schedule(() =>
-          retrieve(provider, mal_id ? "id" : "title", mal_id || series, apiKey)
+          search(provider, mal_id ? "id" : "title", mal_id || series, apiKey)
         );
       } else {
         metadata = await jikanLimiter.schedule(() =>
-          retrieve(provider, mal_id ? "id" : "title", mal_id || series, apiKey)
+          search(provider, mal_id ? "id" : "title", mal_id || series)
         );
       }
     }

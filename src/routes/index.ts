@@ -9,6 +9,7 @@ import clientRouter from "./client";
 import opdsRouter from "./opds";
 import ratingsRouter from "./ratings";
 import tagsRouter from "./tags";
+import metadataRouter from "./metadata";
 import migrateRouter from "./migrate";
 
 const router = Router();
@@ -31,6 +32,7 @@ router.use(imagesRouter);
 router.use(clientRouter);
 router.use(ratingsRouter);
 router.use(tagsRouter);
+router.use(metadataRouter);
 router.use(migrateRouter);
 router.use("/opds", opdsRouter);
 

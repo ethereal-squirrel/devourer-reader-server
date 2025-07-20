@@ -1,0 +1,43 @@
+{
+  "key": "openlibrary",
+  "name": "Open Library",
+  "type": "metadata",
+  "properties": {
+    "library_type": "book",
+    "results_entity": "hits.hits",
+    "search_fallback": "title"
+  },
+  "endpoints": {
+    "id": "https://search.devourer.app/search?by=isbn_13&query={{query}}",
+    "title": "https://search.devourer.app/search?by=title&query={{query}}"
+  },
+  "parser": {
+    "metadata_provider": { "key": "static", "value": "openlibrary" },
+    "title": "_source.title",
+    "oclc_numbers": "_source.oclc_numbers",
+    "work_key": "_source.work_key",
+    "key": "_source.key",
+    "dewey_decimal_class": "_source.dewey_decimal_class",
+    "description": "_source.description",
+    "authors": "_source.authors",
+    "genres": "_source.genres",
+    "publishers": "_source.publishers",
+    "identifiers": null,
+    "subtitle": "_source.subtitle",
+    "number_of_pages": "_source.number_of_pages",
+    "cover": "_source.cover",
+    "subjects": "_source.subjects",
+    "isbn_10": "_source.isbn_10",
+    "isbn_13": "_source.isbn_13",
+    "publish_date": "_source.publish_date",
+    "provider": { "key": "static", "value": "openlibrary" }
+  },
+  "postProcessing": {
+    "isbn_10": {
+      "action": "convertToIndustryIdentifier"
+    },
+    "isbn_13": {
+      "action": "convertToIndustryIdentifier"
+    }
+  }
+}
