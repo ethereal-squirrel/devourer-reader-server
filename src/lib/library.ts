@@ -14,6 +14,7 @@ import { createSeriesPayload } from "./manga/mangaSeries";
 import { prisma } from "../prisma";
 import { ApiError } from "../types/api";
 import { Library } from "../types/types";
+import { startWatcher, stopWatching } from "./watcher";
 
 export async function convertImageDataToWebP(
   imageBuffer: Buffer,
@@ -319,6 +320,8 @@ export const updateLibrary = async (id: number, data: any) => {
 };
 
 export const deleteLibrary = async (id: number) => {
+  await stopWatching();
+
   const library = await prisma.library.findFirst({
     where: {
       id,
@@ -389,6 +392,8 @@ export const deleteLibrary = async (id: number) => {
   } catch (error) {
     console.error(`[Library] Error deleting library:`, error);
   }
+
+  await startWatcher();
 
   return {
     status: true,
@@ -644,8 +649,196 @@ export const processBook = async (file: string, library: Library) => {
   }
 };
 
-export const processManga = async (file: string, library: Library) => {
-  //
+export const processManga = async (folder: string, library: Library) => {
+  let existingSeries = await prisma.mangaSeries.findFirst({
+    where: {
+      library_id: library.id,
+      title: folder,
+    },
+  });
+
+  if (!existingSeries) {
+    let series = await createSeriesPayload(
+      library.metadata?.provider ?? "myanimelist",
+      library.id!,
+      folder,
+      path.join(library.path, folder),
+      null,
+      true,
+      library.metadata?.apiKey
+    );
+
+    console.log(`[Library] Creating new series: ${series.title}`);
+    updateProgress(library.id!, folder, "creating_series");
+
+    existingSeries = await prisma.mangaSeries.create({
+      data: { ...series, manga_data: series.manga_data },
+    });
+
+    const seriesDir = path.join(
+      library.path,
+      ".devourer",
+      "series",
+      existingSeries.id.toString(),
+      "previews"
+    );
+
+    fs.mkdirSync(seriesDir, { recursive: true });
+
+    if (series.manga_data) {
+      if (series.manga_data.coverImage) {
+        await downloadAndConvertToWebP(
+          series.manga_data.coverImage,
+          path.join(
+            library.path,
+            ".devourer",
+            "series",
+            existingSeries.id.toString(),
+            "cover.webp"
+          )
+        );
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+
+  if (existingSeries) {
+    updateProgress(library.id!, folder, "scanning_files");
+
+    const seriesPath = path.join(library.path, folder);
+    let allFiles = getAllFiles(seriesPath);
+
+    if (!allFiles) {
+      throw new Error("Failed to read directory");
+    }
+
+    const filteredFiles = allFiles.filter((file: string) =>
+      /\.(zip|cbz|rar|cbr)$/i.test(file)
+    );
+
+    if (filteredFiles.length === 0) {
+      console.log(
+        `[Library] Skipping folder-based series: ${existingSeries.title}`
+      );
+      updateSeriesComplete(library.id!, folder);
+      return;
+    }
+
+    const existingFiles = await prisma.mangaFile.findMany({
+      where: { series_id: existingSeries.id },
+      select: { id: true, path: true },
+    });
+
+    const filesToDelete = existingFiles.filter(
+      (file: any) => !fs.existsSync(file.path)
+    );
+    const existingFilePaths = new Set(
+      existingFiles
+        .filter((file: any) => fs.existsSync(file.path))
+        .map((f: any) => f.path)
+    );
+
+    const previewDir = path.join(
+      library.path,
+      ".devourer",
+      "series",
+      existingSeries.id.toString(),
+      "previews"
+    );
+    fs.mkdirSync(previewDir, { recursive: true });
+
+    const filesToCreate = [];
+    console.log(
+      `[Library] Processing ${filteredFiles.length} files for series: ${existingSeries.title}`
+    );
+    updateProgress(
+      library.id!,
+      folder,
+      "processing_files",
+      undefined,
+      filteredFiles.length
+    );
+
+    for (const [index, file] of filteredFiles.entries()) {
+      if (existingFilePaths.has(file)) continue;
+
+      const startFile = Date.now();
+
+      console.log(`[Library] Processing new file: ${path.basename(file)}`);
+      const { volume, chapter } = extractChapterAndVolume(file);
+
+      try {
+        const response = await processFileInline(
+          file,
+          path.join(previewDir, `${path.basename(file)}.jpg`)
+        );
+
+        filesToCreate.push({
+          path: file,
+          file_name: path.basename(file),
+          file_format: path.extname(file).slice(1),
+          volume: volume ?? 0,
+          chapter: chapter ?? 0,
+          total_pages: response?.pageCount ?? 0,
+          current_page: 0,
+          is_read: false,
+          series_id: existingSeries.id,
+          metadata: {},
+        });
+      } catch (error) {
+        console.error(
+          `[Library] Error processing file ${path.basename(file)}:`,
+          error
+        );
+      }
+
+      updateProgress(
+        library.id!,
+        folder,
+        "file_processed",
+        index + 1,
+        filteredFiles.length
+      );
+
+      const endFile = Date.now();
+      const fileDuration = (endFile - startFile) / 1000;
+      console.log(
+        `[Library] File ${path.basename(
+          file
+        )} processed in ${fileDuration} seconds`
+      );
+    }
+
+    if (filesToDelete.length > 0 || filesToCreate.length > 0) {
+      await prisma.$transaction([
+        ...(filesToDelete.length > 0
+          ? [
+              prisma.mangaFile.deleteMany({
+                where: {
+                  id: {
+                    in: filesToDelete.map((f: any) => f.id),
+                  },
+                },
+              }),
+            ]
+          : []),
+        ...(filesToCreate.length > 0
+          ? filesToCreate.map((data) => prisma.mangaFile.create({ data }))
+          : []),
+      ]);
+
+      if (filesToDelete.length > 0) {
+        console.log(`[Library] Removed ${filesToDelete.length} deleted files`);
+        updateProgress(
+          library.id!,
+          folder,
+          "files_removed",
+          filesToDelete.length
+        );
+      }
+    }
+  }
 };
 
 const scanBookLibrary = async (library: Library, folders: string[]) => {
@@ -698,10 +891,6 @@ const scanBookLibrary = async (library: Library, folders: string[]) => {
               collections[collectionId].contents.push(createdFile.id);
             }
           }
-
-          console.log(
-            `[Library] Created file: ${createdFile.title} | ${createdFile.path}`
-          );
         }
       }
 
@@ -788,100 +977,11 @@ const scanBookLibrary = async (library: Library, folders: string[]) => {
     }
   }
 
-  if (library.type === "book") {
-    const series = await prisma.bookFile.findMany();
-
-    for (const s of series) {
-      if (!fs.existsSync(s.path)) {
-        console.log(
-          `[Library] Book ${s.title} folder has been removed, deleting...`
-        );
-
-        await prisma.bookFile.deleteMany({
-          where: { id: s.id },
-        });
-
-        try {
-          fs.rmSync(
-            path.join(library.path, ".devourer", "files", s.id.toString()),
-            {
-              recursive: true,
-            }
-          );
-        } catch (error) {
-          console.error(
-            `[Library] Error deleting .devourer folder for book ${s.title}:`,
-            error
-          );
-        }
-      }
-    }
-  } else {
-    const series = await prisma.mangaSeries.findMany();
-
-    for (const s of series) {
-      if (!fs.existsSync(s.path)) {
-        console.log(
-          `[Library] Manga series ${s.title} folder has been removed, deleting...`
-        );
-
-        await prisma.mangaFile.deleteMany({
-          where: { series_id: s.id },
-        });
-
-        await prisma.mangaSeries.delete({
-          where: { id: s.id },
-        });
-
-        try {
-          fs.rmSync(
-            path.join(library.path, ".devourer", "series", s.id.toString()),
-            {
-              recursive: true,
-            }
-          );
-        } catch (error) {
-          console.error(
-            `[Library] Error deleting .devourer folder for manga series: ${s.title}:`,
-            error
-          );
-        }
-      } else {
-        const existingFiles = await prisma.mangaFile.findMany({
-          where: { series_id: s.id },
-        });
-
-        for (const file of existingFiles) {
-          if (!fs.existsSync(file.path)) {
-            await prisma.mangaFile.delete({
-              where: { id: file.id },
-            });
-
-            try {
-              const previewPath = path.join(
-                library.path,
-                ".devourer",
-                "series",
-                s.id.toString(),
-                "previews",
-                `${file.path}.jpg`
-              );
-
-              fs.rmSync(previewPath);
-            } catch (error) {
-              console.error(
-                `[Library] Error deleting preview image for: ${file.file_name}:`,
-                error
-              );
-            }
-          }
-        }
-      }
-    }
-  }
-
   console.log("[Library] Scan completed");
   getScanStatusMap()[library.id!].inProgress = false;
+
+  await stopWatching();
+  startWatcher();
 };
 
 const scanMangaLibrary = async (library: Library, folders: string[]) => {
@@ -899,204 +999,22 @@ const scanMangaLibrary = async (library: Library, folders: string[]) => {
         `[Library] Processing folder ${folderIndex} of ${folders.length}: ${folder}`
       );
 
-      const seriesIndex = getScanStatusMap()[library.id!].series.findIndex(
-        (s) => s.series === folder
-      );
-      if (seriesIndex !== -1) {
-        getScanStatusMap()[library.id!].series[seriesIndex].status = "scanning";
+      let seriesIndex: any = null;
+
+      try {
+        seriesIndex = getScanStatusMap()[library.id!].series.findIndex(
+          (s) => s.series === folder
+        );
+
+        if (seriesIndex !== -1) {
+          getScanStatusMap()[library.id!].series[seriesIndex].status =
+            "scanning";
+        }
+      } catch (error) {
+        console.error(`[Library] Error finding series index:`, error);
       }
 
-      let existingSeries = await prisma.mangaSeries.findFirst({
-        where: {
-          library_id: library.id,
-          title: folder,
-        },
-      });
-
-      if (!existingSeries) {
-        let series = await createSeriesPayload(
-          library.metadata?.provider ?? "myanimelist",
-          library.id!,
-          folder,
-          path.join(library.path, folder),
-          null,
-          true,
-          library.metadata?.apiKey
-        );
-
-        console.log(`[Library] Creating new series: ${series.title}`);
-        updateProgress(library.id!, folder, "creating_series");
-
-        existingSeries = await prisma.mangaSeries.create({
-          data: { ...series, manga_data: series.manga_data },
-        });
-
-        const seriesDir = path.join(
-          library.path,
-          ".devourer",
-          "series",
-          existingSeries.id.toString(),
-          "previews"
-        );
-
-        fs.mkdirSync(seriesDir, { recursive: true });
-
-        if (series.manga_data) {
-          if (series.manga_data.coverImage) {
-            await downloadAndConvertToWebP(
-              series.manga_data.coverImage,
-              path.join(
-                library.path,
-                ".devourer",
-                "series",
-                existingSeries.id.toString(),
-                "cover.webp"
-              )
-            );
-          }
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-      }
-
-      if (existingSeries) {
-        updateProgress(library.id!, folder, "scanning_files");
-
-        const seriesPath = path.join(library.path, folder);
-        let allFiles = getAllFiles(seriesPath);
-
-        if (!allFiles) {
-          throw new Error("Failed to read directory");
-        }
-
-        const filteredFiles = allFiles.filter((file: string) =>
-          /\.(zip|cbz|rar|cbr)$/i.test(file)
-        );
-
-        if (filteredFiles.length === 0) {
-          console.log(
-            `[Library] Skipping folder-based series: ${existingSeries.title}`
-          );
-          updateSeriesComplete(library.id!, folder);
-          return;
-        }
-
-        const existingFiles = await prisma.mangaFile.findMany({
-          where: { series_id: existingSeries.id },
-          select: { id: true, path: true },
-        });
-
-        const filesToDelete = existingFiles.filter(
-          (file: any) => !fs.existsSync(file.path)
-        );
-        const existingFilePaths = new Set(
-          existingFiles
-            .filter((file: any) => fs.existsSync(file.path))
-            .map((f: any) => f.path)
-        );
-
-        const previewDir = path.join(
-          library.path,
-          ".devourer",
-          "series",
-          existingSeries.id.toString(),
-          "previews"
-        );
-        fs.mkdirSync(previewDir, { recursive: true });
-
-        const filesToCreate = [];
-        console.log(
-          `[Library] Processing ${filteredFiles.length} files for series: ${existingSeries.title}`
-        );
-        updateProgress(
-          library.id!,
-          folder,
-          "processing_files",
-          undefined,
-          filteredFiles.length
-        );
-
-        for (const [index, file] of filteredFiles.entries()) {
-          if (existingFilePaths.has(file)) continue;
-
-          const startFile = Date.now();
-
-          console.log(`[Library] Processing new file: ${path.basename(file)}`);
-          const { volume, chapter } = extractChapterAndVolume(file);
-
-          try {
-            const response = await processFileInline(
-              file,
-              path.join(previewDir, `${path.basename(file)}.jpg`)
-            );
-
-            filesToCreate.push({
-              path: file,
-              file_name: path.basename(file),
-              file_format: path.extname(file).slice(1),
-              volume: volume ?? 0,
-              chapter: chapter ?? 0,
-              total_pages: response?.pageCount ?? 0,
-              current_page: 0,
-              is_read: false,
-              series_id: existingSeries.id,
-              metadata: {},
-            });
-          } catch (error) {
-            console.error(
-              `[Library] Error processing file ${path.basename(file)}:`,
-              error
-            );
-          }
-
-          updateProgress(
-            library.id!,
-            folder,
-            "file_processed",
-            index + 1,
-            filteredFiles.length
-          );
-
-          const endFile = Date.now();
-          const fileDuration = (endFile - startFile) / 1000;
-          console.log(
-            `[Library] File ${path.basename(
-              file
-            )} processed in ${fileDuration} seconds`
-          );
-        }
-
-        if (filesToDelete.length > 0 || filesToCreate.length > 0) {
-          await prisma.$transaction([
-            ...(filesToDelete.length > 0
-              ? [
-                  prisma.mangaFile.deleteMany({
-                    where: {
-                      id: {
-                        in: filesToDelete.map((f: any) => f.id),
-                      },
-                    },
-                  }),
-                ]
-              : []),
-            ...(filesToCreate.length > 0
-              ? filesToCreate.map((data) => prisma.mangaFile.create({ data }))
-              : []),
-          ]);
-
-          if (filesToDelete.length > 0) {
-            console.log(
-              `[Library] Removed ${filesToDelete.length} deleted files`
-            );
-            updateProgress(
-              library.id!,
-              folder,
-              "files_removed",
-              filesToDelete.length
-            );
-          }
-        }
-      }
+      await processManga(folder, library);
 
       updateSeriesComplete(library.id!, folder);
     } catch (error) {
@@ -1135,7 +1053,12 @@ const scanMangaLibrary = async (library: Library, folders: string[]) => {
   }
 
   console.log("[Library] Scan completed");
-  getScanStatusMap()[library.id!].inProgress = false;
+
+  try {
+    getScanStatusMap()[library.id!].inProgress = false;
+  } catch (error) {
+    console.error(`[Library] Error stopping scan:`, error);
+  }
 };
 
 const updateProgress = (
@@ -1146,34 +1069,50 @@ const updateProgress = (
   total?: number,
   count?: number
 ) => {
-  const idx = getScanStatusMap()[libraryId].series.findIndex(
-    (s) => s.series === series
-  );
-  if (idx !== -1) {
-    if (current !== undefined && total !== undefined) {
-      getScanStatusMap()[libraryId].series[idx].progress = { current, total };
+  try {
+    const idx = getScanStatusMap()[libraryId].series.findIndex(
+      (s) => s.series === series
+    );
+
+    if (idx !== -1) {
+      if (current !== undefined && total !== undefined) {
+        getScanStatusMap()[libraryId].series[idx].progress = { current, total };
+      }
     }
+  } catch (error) {
+    console.error(`[Library] Error updating progress:`, error);
   }
 };
 
 const updateError = (libraryId: number, series: string, error: string) => {
-  const idx = getScanStatusMap()[libraryId].series.findIndex(
-    (s) => s.series === series
-  );
-  if (idx !== -1) {
-    getScanStatusMap()[libraryId].series[idx].status = "error";
-    getScanStatusMap()[libraryId].series[idx].error = error;
+  try {
+    const idx = getScanStatusMap()[libraryId].series.findIndex(
+      (s) => s.series === series
+    );
+
+    if (idx !== -1) {
+      getScanStatusMap()[libraryId].series[idx].status = "error";
+      getScanStatusMap()[libraryId].series[idx].error = error;
+    }
+  } catch (error) {
+    console.error(`[Library] Error updating error:`, error);
   }
 };
 
 const updateSeriesComplete = (libraryId: number, series: string) => {
-  const idx = getScanStatusMap()[libraryId].series.findIndex(
-    (s) => s.series === series
-  );
-  if (idx !== -1) {
-    getScanStatusMap()[libraryId].series[idx].status = "complete";
+  try {
+    const idx = getScanStatusMap()[libraryId].series.findIndex(
+      (s) => s.series === series
+    );
+
+    if (idx !== -1) {
+      getScanStatusMap()[libraryId].series[idx].status = "complete";
+    }
+
+    getScanStatusMap()[libraryId].completedSeries++;
+  } catch (error) {
+    console.error(`[Library] Error updating series complete:`, error);
   }
-  getScanStatusMap()[libraryId].completedSeries++;
 };
 
 export const getRecentlyRead = async (userId: number) => {
@@ -1255,4 +1194,149 @@ export const updateRecentlyRead = async (
       user_id: userId,
     },
   });
+};
+
+export const deleteBook = async (filePath: string) => {
+  const book = await prisma.bookFile.findUnique({
+    where: { path: filePath },
+  });
+
+  if (!book) {
+    return false;
+  }
+
+  const library = await prisma.library.findUnique({
+    where: { id: book.library_id },
+  });
+
+  if (!library) {
+    return false;
+  }
+
+  await prisma.recentlyRead.deleteMany({
+    where: { file_id: book.id },
+  });
+
+  await prisma.readingStatus.deleteMany({
+    where: { file_id: book.id },
+  });
+
+  await prisma.userRating.deleteMany({
+    where: { file_id: book.id },
+  });
+
+  await prisma.userTag.deleteMany({
+    where: { file_id: book.id },
+  });
+
+  await prisma.bookFile.delete({
+    where: { id: book.id },
+  });
+
+  try {
+    fs.rmSync(
+      path.join(library.path, ".devourer", "files", book.id.toString()),
+      {
+        recursive: true,
+      }
+    );
+  } catch (error) {
+    console.error(`[Library] Error deleting book files:`, error);
+  }
+
+  return true;
+};
+
+export const deleteManga = async (filePath: string) => {
+  const manga = await prisma.mangaFile.findUnique({
+    where: { path: filePath },
+  });
+
+  if (!manga) {
+    return false;
+  }
+
+  const series = await prisma.mangaSeries.findUnique({
+    where: { id: manga.series_id },
+  });
+
+  if (!series) {
+    return false;
+  }
+
+  const library = await prisma.library.findUnique({
+    where: { id: series.library_id },
+  });
+
+  if (!library) {
+    return false;
+  }
+
+  await prisma.recentlyRead.deleteMany({
+    where: { file_id: manga.id },
+  });
+
+  await prisma.readingStatus.deleteMany({
+    where: { file_id: manga.id },
+  });
+
+  await prisma.userRating.deleteMany({
+    where: { file_id: manga.id },
+  });
+
+  await prisma.userTag.deleteMany({
+    where: { file_id: manga.id },
+  });
+
+  await prisma.mangaFile.delete({
+    where: { id: manga.id },
+  });
+
+  const mangaFiles = await prisma.mangaFile.findMany({
+    where: {
+      series_id: manga.series_id,
+    },
+  });
+
+  if (mangaFiles.length === 0) {
+    await prisma.mangaSeries.delete({
+      where: { id: manga.series_id },
+    });
+
+    try {
+      fs.rmSync(
+        path.join(
+          library.path,
+          ".devourer",
+          "series",
+          manga.series_id.toString()
+        ),
+        {
+          recursive: true,
+        }
+      );
+    } catch (error) {
+      console.error(`[Library] Error deleting manga series:`, error);
+    }
+  } else {
+    try {
+      fs.rmSync(
+        path.join(
+          library.path,
+          ".devourer",
+          "series",
+          manga.series_id.toString(),
+          "previews",
+          `${manga.file_name}.jpg`
+        ),
+        {
+          recursive: true,
+        }
+      );
+    } catch (error) {
+      console.error(`[Library] Error deleting manga files:`, error);
+    }
+  }
+
+  return true;
 };
