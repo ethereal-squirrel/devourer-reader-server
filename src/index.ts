@@ -11,6 +11,7 @@ import router from "./routes";
 import { PrismaClient } from "../generated/prisma/client";
 import { errorHandler } from "./middleware/errorHandler";
 import { resetPassword } from "./lib/auth";
+import { startWatcher } from "./lib/watcher";
 
 declare global {
   namespace NodeJS {
@@ -321,6 +322,7 @@ async function handleCommand(command: string, args: string[]) {
 async function startApp() {
   try {
     await initializeDatabase();
+    await startWatcher();
 
     app.listen(port, () => {
       console.log(`[Server] Devourer is running on port ${port}`);
