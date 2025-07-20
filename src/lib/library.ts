@@ -476,6 +476,178 @@ export const getScanStatus = async (
   };
 };
 
+export const processBook = async (file: string, library: Library) => {
+  const existingFile = await prisma.bookFile.findFirst({
+    where: {
+      path: file,
+    },
+  });
+
+  if (!existingFile) {
+    const bookName = path.basename(file);
+    const cleanBookName = bookName.replace(/[\[\(\<].*?[\]\)\>]/g, "").trim();
+    const cleanBookNameWithoutExt = cleanBookName.replace(/\.[^/.]+$/, "");
+
+    let metadata = null;
+    let series = null;
+
+    if (file.endsWith(".epub")) {
+      metadata = (await scanEpub(file)) as any;
+    }
+
+    if (metadata) {
+      series = await createBookSeriesPayload(
+        library.id!,
+        metadata.title,
+        file,
+        metadata.isbn ?? null,
+        true
+      );
+    } else {
+      series = await createBookSeriesPayload(
+        library.id!,
+        cleanBookNameWithoutExt,
+        file,
+        null,
+        true
+      );
+    }
+
+    if (!series.metadata) {
+      series.metadata = {};
+    }
+
+    if (!series.metadata.title) {
+      series.metadata.title = cleanBookNameWithoutExt;
+    }
+
+    if (metadata) {
+      series.metadata.epub = metadata;
+    }
+
+    const createdFile = await prisma.bookFile.create({
+      data: {
+        title:
+          series.metadata.epub && series.metadata.epub.title
+            ? series.metadata.epub.title
+            : series.metadata.title,
+        path: file,
+        file_name: path.basename(file),
+        file_format: path.extname(file).slice(1),
+        total_pages: series.metadata.pageCount || 0,
+        current_page: "0",
+        is_read: false,
+        metadata: {
+          ...series.metadata,
+          epub: series.metadata.epub
+            ? { ...series.metadata.epub, cover: null }
+            : null,
+        },
+        library_id: library.id,
+        tags: [],
+        formats: [
+          {
+            format: path.extname(file).slice(1),
+            name: path.basename(file),
+            path: file,
+          },
+        ],
+      },
+    });
+
+    const previewDir = path.join(
+      library.path,
+      ".devourer",
+      "files",
+      createdFile.id.toString()
+    );
+
+    try {
+      fs.mkdirSync(previewDir, { recursive: true });
+    } catch (error) {
+      console.error(`[Library] Error creating preview directory:`, error);
+    }
+
+    if (file.endsWith(".epub")) {
+      metadata = (await scanEpub(file)) as any;
+    }
+
+    let hasCover = false;
+
+    if (
+      file.endsWith(".epub") &&
+      metadata &&
+      metadata.cover &&
+      metadata.coverMimeType === "image/jpeg"
+    ) {
+      await convertImageDataToWebP(
+        metadata.cover,
+        path.join(previewDir, "cover.webp")
+      );
+
+      hasCover = true;
+    }
+
+    if (file.endsWith(".pdf")) {
+      try {
+        // @TODO: Implement.
+        hasCover = false;
+      } catch (error) {
+        console.error(`[Library] Error processing PDF:`, error);
+      }
+    }
+
+    if (!hasCover) {
+      if (
+        series.metadata &&
+        series.metadata.cover &&
+        series.metadata.cover.length > 10
+      ) {
+        await downloadAndConvertToWebP(
+          series.metadata.cover,
+          path.join(
+            library.path,
+            ".devourer",
+            "files",
+            createdFile.id.toString(),
+            "cover.webp"
+          )
+        );
+
+        hasCover = true;
+      } else if (
+        series.metadata &&
+        series.metadata.isbn_13 &&
+        series.metadata.isbn_13.length > 0
+      ) {
+        const coverUrl = `https://covers.openlibrary.org/b/isbn/${series.metadata.isbn_13}-L.jpg`;
+        await downloadAndConvertToWebP(
+          coverUrl,
+          path.join(
+            library.path,
+            ".devourer",
+            "files",
+            createdFile.id.toString(),
+            "cover.webp"
+          )
+        );
+
+        hasCover = true;
+      }
+    }
+
+    console.log(
+      `[Library] Created file: ${createdFile.title} | ${createdFile.path}`
+    );
+
+    return createdFile;
+  }
+};
+
+export const processManga = async (file: string, library: Library) => {
+  //
+};
+
 const scanBookLibrary = async (library: Library, folders: string[]) => {
   let collections: any = {};
   let collectionId = 1;
@@ -513,89 +685,9 @@ const scanBookLibrary = async (library: Library, folders: string[]) => {
       }
 
       for (const file of files) {
-        let existingFile = await prisma.bookFile.findFirst({
-          where: {
-            path: file,
-          },
-        });
+        const createdFile = await processBook(file, library);
 
-        if (!existingFile) {
-          const bookName = path.basename(file);
-          const cleanBookName = bookName
-            .replace(/[\[\(\<].*?[\]\)\>]/g, "")
-            .trim();
-          const cleanBookNameWithoutExt = cleanBookName.replace(
-            /\.[^/.]+$/,
-            ""
-          );
-
-          let metadata = null;
-          let series = null;
-
-          if (file.endsWith(".epub")) {
-            metadata = (await scanEpub(file)) as any;
-          }
-
-          if (metadata) {
-            series = await createBookSeriesPayload(
-              library.id!,
-              metadata.title,
-              path.join(library.path, folder),
-              metadata.isbn ?? null,
-              true
-            );
-          } else {
-            series = await createBookSeriesPayload(
-              library.id!,
-              cleanBookNameWithoutExt,
-              path.join(library.path, folder),
-              null,
-              true
-            );
-          }
-
-          if (!series.metadata) {
-            series.metadata = {};
-          }
-
-          if (!series.metadata.title) {
-            series.metadata.title = cleanBookNameWithoutExt;
-          }
-
-          if (metadata) {
-            series.metadata.epub = metadata;
-          }
-
-          const createdFile = await prisma.bookFile.create({
-            data: {
-              title:
-                series.metadata.epub && series.metadata.epub.title
-                  ? series.metadata.epub.title
-                  : series.metadata.title,
-              path: file,
-              file_name: path.basename(file),
-              file_format: path.extname(file).slice(1),
-              total_pages: series.metadata.pageCount || 0,
-              current_page: "0",
-              is_read: false,
-              metadata: {
-                ...series.metadata,
-                epub: series.metadata.epub
-                  ? { ...series.metadata.epub, cover: null }
-                  : null,
-              },
-              library_id: library.id,
-              tags: [],
-              formats: [
-                {
-                  format: path.extname(file).slice(1),
-                  name: path.basename(file),
-                  path: file,
-                },
-              ],
-            },
-          });
-
+        if (createdFile) {
           if (isFolder && collectionId) {
             if (!collections[collectionId]) {
               collections[collectionId] = {
@@ -604,87 +696,6 @@ const scanBookLibrary = async (library: Library, folders: string[]) => {
               };
             } else {
               collections[collectionId].contents.push(createdFile.id);
-            }
-          }
-
-          const previewDir = path.join(
-            library.path,
-            ".devourer",
-            "files",
-            createdFile.id.toString()
-          );
-
-          try {
-            fs.mkdirSync(previewDir, { recursive: true });
-          } catch (error) {
-            console.error(`[Library] Error creating preview directory:`, error);
-          }
-
-          if (file.endsWith(".epub")) {
-            metadata = (await scanEpub(file)) as any;
-          }
-
-          let hasCover = false;
-
-          if (
-            file.endsWith(".epub") &&
-            metadata &&
-            metadata.cover &&
-            metadata.coverMimeType === "image/jpeg"
-          ) {
-            await convertImageDataToWebP(
-              metadata.cover,
-              path.join(previewDir, "cover.webp")
-            );
-
-            hasCover = true;
-          }
-
-          if (file.endsWith(".pdf")) {
-            try {
-              // @TODO: Implement.
-              hasCover = false;
-            } catch (error) {
-              console.error(`[Library] Error processing PDF:`, error);
-            }
-          }
-
-          if (!hasCover) {
-            if (
-              series.metadata &&
-              series.metadata.cover &&
-              series.metadata.cover.length > 10
-            ) {
-              await downloadAndConvertToWebP(
-                series.metadata.cover,
-                path.join(
-                  library.path,
-                  ".devourer",
-                  "files",
-                  createdFile.id.toString(),
-                  "cover.webp"
-                )
-              );
-
-              hasCover = true;
-            } else if (
-              series.metadata &&
-              series.metadata.isbn_13 &&
-              series.metadata.isbn_13.length > 0
-            ) {
-              const coverUrl = `https://covers.openlibrary.org/b/isbn/${series.metadata.isbn_13}-L.jpg`;
-              await downloadAndConvertToWebP(
-                coverUrl,
-                path.join(
-                  library.path,
-                  ".devourer",
-                  "files",
-                  createdFile.id.toString(),
-                  "cover.webp"
-                )
-              );
-
-              hasCover = true;
             }
           }
 
