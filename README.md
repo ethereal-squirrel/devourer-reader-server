@@ -194,7 +194,28 @@ Update series cover image. Supports multipart file upload.
 Parameters: [libraryId: libraryId, seriesId: seriesId]
 Required role: edit_metadata
 
+#### [PUT] /series
+
+Create a new series.
+
+Expects: { "title": "One Piece", "path": "One Piece" }
+Required role: add_file
+
 ## File Management
+
+#### [PUT] /book/:libraryId
+
+Upload a book to a specified library. Expects a standard formData file upload.
+
+Parameters: [libraryId]
+Required role: add_file
+
+#### [PUT] /series/:libraryId/:seriesId/file
+
+Upload a file to a manga / comic series. Expects a standard formData file upload.
+
+Parameters: [libraryId, seriesId]
+Required role: add_file
 
 #### [GET] /file/:libraryId/:id
 

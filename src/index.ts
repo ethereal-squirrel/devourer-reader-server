@@ -42,7 +42,7 @@ export const app: Express = express();
 const port = process.env.PORT || 9024;
 
 app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.urlencoded({ limit: "2gb", extended: true }));
 
 app.use(
   cors({

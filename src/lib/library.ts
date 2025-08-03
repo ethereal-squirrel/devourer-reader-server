@@ -59,7 +59,7 @@ export async function convertImageDataToWebP(
   }
 }
 
-async function downloadAndConvertToWebP(
+export async function downloadAndConvertToWebP(
   imageUrl: string,
   outputPath: string,
   maxWidth: number = 600,

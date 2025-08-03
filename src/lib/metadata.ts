@@ -39,7 +39,11 @@ export const searchMetadata = async (
   const provider = providers[target];
   let url = provider.endpoints[by].replace("{{query}}", value);
 
-  if (apiKey && provider.endpoints[by].includes("{{apiKey}}")) {
+  if (
+    apiKey &&
+    apiKey.length > 0 &&
+    provider.endpoints[by].includes("{{apiKey}}")
+  ) {
     url = url.replace("{{apiKey}}", apiKey);
   }
 

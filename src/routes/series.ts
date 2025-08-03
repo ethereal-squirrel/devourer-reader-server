@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import path from "path";
 import fs from "fs";
 import multer from "multer";
+import os from "os";
 
 import { prisma } from "../prisma";
 import { checkAuth, checkRoles } from "../lib/auth";
@@ -9,21 +10,48 @@ import { downloadImage } from "../lib/file";
 import { checkLibrary, convertImageDataToWebP } from "../lib/library";
 import { getBook } from "../lib/book/book";
 import { getSeries } from "../lib/manga/series";
+import { uploadBookFile } from "../lib/book/bookSeries";
+import { createMangaSeries, uploadMangaFile } from "../lib/manga/series";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { ApiError } from "../types/api";
 
 export const seriesRouter = Router();
 
+const validUploads = ["zip", "cbz", "rar", "cbr", "epub", "pdf"];
+
+const cleanupTempFile = async (filePath: string) => {
+  try {
+    await fs.promises.unlink(filePath);
+  } catch (error) {
+    console.warn(`[Cleanup] Failed to remove temp file ${filePath}:`, error);
+  }
+};
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const tempDir = path.join(os.tmpdir(), "devourer-uploads");
+      fs.mkdirSync(tempDir, { recursive: true });
+      cb(null, tempDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}-${
+        file.originalname
+      }`;
+      cb(null, uniqueName);
+    },
+  }),
   limits: {
-    fileSize: 10 * 1024 * 1024,
+    fileSize: 2048 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
+    if (
+      file.mimetype.startsWith("image/") ||
+      validUploads.includes(file.originalname.split(".").pop() || "")
+    ) {
       cb(null, true);
     } else {
-      cb(new Error("Only image files are allowed"));
+      cb(new Error("Only image, book and archive files are allowed"));
     }
   },
 });
@@ -255,6 +283,108 @@ seriesRouter.patch(
         ? "Cover uploaded successfully"
         : "Cover downloaded successfully",
     });
+  })
+);
+
+seriesRouter.put(
+  "/book/:libraryId",
+  checkAuth,
+  upload.single("file"),
+  asyncHandler(async (req: Request, res: Response) => {
+    await checkRoles(req.headers.user_roles as string, "add_file");
+
+    const library = await checkLibrary(req.params.libraryId);
+
+    if (library.type !== "book") {
+      throw new ApiError(400, "This endpoint does not support manga uploads.");
+    } else {
+      const uploadedFile = req.file;
+
+      if (!uploadedFile) {
+        throw new ApiError(400, "File is required");
+      }
+
+      const entity = await uploadBookFile(uploadedFile, library.id);
+
+      res.json({
+        status: true,
+        entity,
+      });
+    }
+  })
+);
+
+seriesRouter.put(
+  "/series",
+  checkAuth,
+  upload.single("file"),
+  asyncHandler(async (req: Request, res: Response) => {
+    await checkRoles(req.headers.user_roles as string, "add_file");
+
+    const { payload } = req.body;
+
+    if (!payload) {
+      throw new ApiError(400, "Payload is required");
+    }
+
+    const library = await checkLibrary(payload.library_id);
+    let entity = null;
+
+    if (library.type === "book") {
+      throw new ApiError(400, "This endpoint does not support book uploads.");
+    } else {
+      entity = await createMangaSeries(payload);
+    }
+
+    res.json({
+      status: true,
+      entity,
+    });
+  })
+);
+
+seriesRouter.put(
+  "/series/:libraryId/:seriesId/file",
+  checkAuth,
+  upload.single("file"),
+  asyncHandler(async (req: Request, res: Response) => {
+    await checkRoles(req.headers.user_roles as string, "add_file");
+
+    const uploadedFile = req.file;
+    const { seriesId, libraryId } = req.params;
+
+    if (!uploadedFile) {
+      throw new ApiError(400, "File is required");
+    }
+
+    const library = await checkLibrary(libraryId);
+    let entity = null;
+
+    try {
+      if (library.type === "book") {
+        res.json({
+          status: true,
+          message: "This endpoint does not support book uploads.",
+        });
+        return;
+      } else {
+        entity = await uploadMangaFile(
+          uploadedFile,
+          library.id,
+          Number(seriesId)
+        );
+      }
+
+      res.json({
+        status: true,
+        entity,
+      });
+    } catch (error) {
+      if (uploadedFile?.path) {
+        await cleanupTempFile(uploadedFile.path);
+      }
+      throw error;
+    }
   })
 );
 
