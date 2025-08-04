@@ -9,4 +9,9 @@ clientRouter.use(
   express.static(path.join(__dirname, "../../client"))
 );
 
+clientRouter.get("/client/unrar.wasm", (req, res) => {
+  res.set("Content-Type", "application/wasm");
+  res.sendFile(path.join(__dirname, "../../client/unrar.wasm"));
+});
+
 export default clientRouter;
