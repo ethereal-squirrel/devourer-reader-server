@@ -1,6 +1,7 @@
 generated/prisma/
 executables
 prisma/devourer.db
+devourer.log
 
 # Common folders
 .claude

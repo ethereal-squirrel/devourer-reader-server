@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
+import util from "util";
 
 import router from "./routes";
 import { PrismaClient } from "../generated/prisma/client";
@@ -13,6 +14,7 @@ import { errorHandler } from "./middleware/errorHandler";
 import { resetPassword } from "./lib/auth";
 import { startWatcher } from "./lib/watcher";
 import { searchMetadata } from "./lib/metadata";
+import "./lib/logger";
 
 declare global {
   namespace NodeJS {
