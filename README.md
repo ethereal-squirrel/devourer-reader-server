@@ -2,6 +2,8 @@
 
 A library server providing a highly performant system to archive, scan and catalog your books, manga and comics.
 
+V2 is a fundamental rebuild of the server architecture and tooling, moving from Node.js to Go in order to get around... far too many packaging issues.
+
 > **Important:** Upon running the server for the first time, make note of the automatically generated username, password, and API key printed to the console. You'll need these to connect with a client.
 
 ## Features
@@ -24,7 +26,7 @@ A library server providing a highly performant system to archive, scan and catal
 
 ### Book Features
 
-- Supports EPUB, PDF, MOBI, DOCX, and more.
+- Supports EPUB and PDF. Support for other formats to follow shortly.
 - OPDS 1.2 support for e-reader compatibility.
 - Import existing libraries from Calibre.
 

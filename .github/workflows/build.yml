@@ -1,0 +1,53 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.2.0)"
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Build all platforms
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Build
+        run: |
+          make build-windows
+          make build-linux
+          make build-linux-arm64
+          make build-macos-arm
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: devourer-server-${{ inputs.version }}
+          path: |
+            bin/devourer-server.exe
+            bin/devourer-server-linux-amd64
+            bin/devourer-server-linux-arm64
+            bin/devourer-server-macos-arm64
+          retention-days: 30
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: v${{ inputs.version }}
+          draft: true
+          generate_release_notes: true
+          files: |
+            bin/devourer-server.exe
+            bin/devourer-server-linux-amd64
+            bin/devourer-server-linux-arm64
+            bin/devourer-server-macos-arm64
