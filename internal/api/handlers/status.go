@@ -7,7 +7,7 @@ import (
 )
 
 func (h *Handlers) Version(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"version": "2.0.0"})
+	c.JSON(http.StatusOK, gin.H{"version": "2.0.1"})
 }
 
 func (h *Handlers) Health(c *gin.Context) {
