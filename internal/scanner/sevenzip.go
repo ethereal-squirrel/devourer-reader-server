@@ -7,8 +7,6 @@ import (
 	"github.com/bodgit/sevenzip"
 )
 
-// Process7z processes a .7z or .cb7 archive and returns the page count and
-// the first image's raw bytes (used as the cover/preview).
 func Process7z(archivePath string) (pageCount int, firstImageData []byte, err error) {
 	r, err := sevenzip.OpenReader(archivePath)
 	if err != nil {

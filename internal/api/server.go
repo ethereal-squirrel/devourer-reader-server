@@ -2,9 +2,8 @@ package api
 
 import (
 	"database/sql"
+	"io/fs"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 
@@ -13,7 +12,7 @@ import (
 	"github.com/devourer/server/internal/config"
 )
 
-func NewServer(d *sql.DB, cfg *config.Config, w handlers.Watcher) *gin.Engine {
+func NewServer(d *sql.DB, cfg *config.Config, w handlers.Watcher, clientFS fs.FS) *gin.Engine {
 	r := gin.Default()
 
 	r.Use(func(c *gin.Context) {
@@ -30,24 +29,18 @@ func NewServer(d *sql.DB, cfg *config.Config, w handlers.Watcher) *gin.Engine {
 
 	r.Static("/assets", cfg.AssetsPath)
 
-	// SPA: serve client/index.html for all unmatched paths under /client
-	clientIndex := filepath.Join(cfg.ClientPath, "index.html")
-	clientFS := http.Dir(cfg.ClientPath)
+	clientHTTPFS := http.FS(clientFS)
 	spaHandler := func(c *gin.Context) {
 		file := c.Param("filepath")
-		f, err := clientFS.Open(file)
+		f, err := clientHTTPFS.Open(file)
 		if err != nil {
-			if os.IsNotExist(err) {
-				c.File(clientIndex)
-				return
-			}
-			c.AbortWithStatus(http.StatusInternalServerError)
+			c.FileFromFS("/", clientHTTPFS)
 			return
 		}
 		f.Close()
-		c.FileFromFS(file, clientFS)
+		c.FileFromFS(file, clientHTTPFS)
 	}
-	r.GET("/client", func(c *gin.Context) { c.File(clientIndex) })
+	r.GET("/client", func(c *gin.Context) { c.FileFromFS("/", clientHTTPFS) })
 	r.GET("/client/*filepath", spaHandler)
 
 	h := handlers.New(d, cfg)

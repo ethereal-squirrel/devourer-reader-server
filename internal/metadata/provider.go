@@ -2,8 +2,7 @@ package metadata
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
+	"io/fs"
 	"strings"
 )
 
@@ -29,14 +28,14 @@ type SearchArray struct {
 	Value string `json:"value"`
 }
 
-func LoadProviders(pluginsDir string) (map[string]*Provider, error) {
+func LoadProviders(pluginsFS fs.FS) (map[string]*Provider, error) {
 	providers := make(map[string]*Provider)
 
-	err := filepath.WalkDir(pluginsDir, func(path string, d os.DirEntry, err error) error {
+	err := fs.WalkDir(pluginsFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".json") {
 			return err
 		}
-		data, err := os.ReadFile(path)
+		data, err := fs.ReadFile(pluginsFS, path)
 		if err != nil {
 			return nil
 		}

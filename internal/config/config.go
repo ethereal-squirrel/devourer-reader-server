@@ -1,6 +1,7 @@
 package config
 
 import (
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
@@ -12,7 +13,7 @@ type Config struct {
 	AssetsPath        string
 	ClientPath        string
 	PluginsPath       string
-	MigrationsDir     string
+	PluginsFS         fs.FS
 	UploadMaxSizeMB   int64
 	UploadAllowedExts map[string]bool
 }
@@ -24,7 +25,6 @@ func Load() *Config {
 		AssetsPath:        getEnv("ASSETS_PATH", "./assets"),
 		ClientPath:        getEnv("CLIENT_PATH", "./client"),
 		PluginsPath:       getEnv("PLUGINS_PATH", "./plugins"),
-		MigrationsDir:     getEnv("MIGRATIONS_DIR", "./migrations"),
 		UploadMaxSizeMB:   getEnvInt64("UPLOAD_MAX_SIZE_MB", 1024),
 		UploadAllowedExts: parseExtList(getEnv("UPLOAD_ALLOWED_EXTS", "epub,pdf,mobi,docx,doc,rtf,html,txt,cbz,cbr,zip,rar,7z,cb7")),
 	}

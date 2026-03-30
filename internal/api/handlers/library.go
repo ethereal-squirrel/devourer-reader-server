@@ -96,7 +96,7 @@ func (h *Handlers) CreateLibrary(c *gin.Context) {
 		go h.Watcher.Restart()
 	}
 
-	providers, _ := metadata.LoadProviders(h.Cfg.PluginsPath)
+	providers, _ := metadata.LoadProviders(h.Cfg.PluginsFS)
 	scanCfg := &scanner.Config{
 		DB:          h.DB,
 		AssetsPath:  h.Cfg.AssetsPath,
@@ -260,7 +260,7 @@ func (h *Handlers) ScanLibrary(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"status": false, "message": "Invalid library ID"})
 		return
 	}
-	providers, _ := metadata.LoadProviders(h.Cfg.PluginsPath)
+	providers, _ := metadata.LoadProviders(h.Cfg.PluginsFS)
 	cfg := &scanner.Config{
 		DB:          h.DB,
 		AssetsPath:  h.Cfg.AssetsPath,

@@ -2,11 +2,10 @@ package db
 
 import (
 	"database/sql"
+	_ "embed"
 	"fmt"
 	"log"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,6 +13,41 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
 )
+
+//go:embed migrations/1.sql
+var migration1 string
+
+//go:embed migrations/2.sql
+var migration2 string
+
+//go:embed migrations/3.sql
+var migration3 string
+
+//go:embed migrations/4.sql
+var migration4 string
+
+//go:embed migrations/5.sql
+var migration5 string
+
+//go:embed migrations/6.sql
+var migration6 string
+
+//go:embed migrations/7.sql
+var migration7 string
+
+//go:embed migrations/8.sql
+var migration8 string
+
+var migrations = map[int]string{
+	1: migration1,
+	2: migration2,
+	3: migration3,
+	4: migration4,
+	5: migration5,
+	6: migration6,
+	7: migration7,
+	8: migration8,
+}
 
 const DatabaseVersion = 8
 
@@ -39,12 +73,12 @@ func Open(dbPath string) (*sql.DB, error) {
 	return db, nil
 }
 
-func Initialize(db *sql.DB, migrationsDir string) error {
+func Initialize(db *sql.DB) error {
 	var tableName string
 	row := db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name='Config'`)
 	if err := row.Scan(&tableName); err != nil {
 		log.Println("[DB] Tables do not exist, running initial migration...")
-		if err := runMigrationFile(db, filepath.Join(migrationsDir, "1.sql")); err != nil {
+		if err := runMigration(db, 1, migrations[1]); err != nil {
 			return fmt.Errorf("migration 1: %w", err)
 		}
 
@@ -67,12 +101,12 @@ func Initialize(db *sql.DB, migrationsDir string) error {
 	if currentVersion < DatabaseVersion {
 		log.Printf("[DB] Database is at version %d, upgrading to %d...", currentVersion, DatabaseVersion)
 		for i := currentVersion + 1; i <= DatabaseVersion; i++ {
-			sqlPath := filepath.Join(migrationsDir, fmt.Sprintf("%d.sql", i))
-			if _, err := os.Stat(sqlPath); os.IsNotExist(err) {
+			sql, ok := migrations[i]
+			if !ok {
 				continue
 			}
 			log.Printf("[DB] Running migration %d...", i)
-			if err := runMigrationFile(db, sqlPath); err != nil {
+			if err := runMigration(db, i, sql); err != nil {
 				return fmt.Errorf("migration %d: %w", i, err)
 			}
 		}
@@ -87,13 +121,8 @@ func Initialize(db *sql.DB, migrationsDir string) error {
 	return nil
 }
 
-func runMigrationFile(db *sql.DB, path string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("read %s: %w", path, err)
-	}
-
-	statements := strings.Split(string(data), ";")
+func runMigration(db *sql.DB, version int, content string) error {
+	statements := strings.Split(content, ";")
 	for _, stmt := range statements {
 		stmt = strings.TrimSpace(stmt)
 		if stmt == "" {

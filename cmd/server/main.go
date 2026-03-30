@@ -3,12 +3,14 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 
+	server "github.com/devourer/server"
 	"github.com/devourer/server/internal/api"
 	"github.com/devourer/server/internal/auth"
 	"github.com/devourer/server/internal/config"
@@ -42,12 +44,19 @@ func main() {
 	}
 }
 
+func loadConfig() *config.Config {
+	cfg := config.Load()
+	pluginsFS, _ := fs.Sub(server.PluginsFS, "plugins")
+	cfg.PluginsFS = pluginsFS
+	return cfg
+}
+
 func serveCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "serve",
 		Short: "Start the HTTP server and file watcher",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg := config.Load()
+			cfg := loadConfig()
 
 			sqlDB, err := db.Open(cfg.DatabasePath)
 			if err != nil {
@@ -55,11 +64,11 @@ func serveCmd() *cobra.Command {
 			}
 			defer sqlDB.Close()
 
-			if err := db.Initialize(sqlDB, cfg.MigrationsDir); err != nil {
+			if err := db.Initialize(sqlDB); err != nil {
 				return fmt.Errorf("initialize database: %w", err)
 			}
 
-			providers, err := metadata.LoadProviders(cfg.PluginsPath)
+			providers, err := metadata.LoadProviders(cfg.PluginsFS)
 			if err != nil {
 				log.Printf("[Main] Warning: could not load metadata providers: %v", err)
 			}
@@ -73,7 +82,8 @@ func serveCmd() *cobra.Command {
 			}
 			defer w.Stop()
 
-			r := api.NewServer(sqlDB, cfg, w)
+			clientFS, _ := fs.Sub(server.ClientFS, "client")
+			r := api.NewServer(sqlDB, cfg, w, clientFS)
 			addr := fmt.Sprintf(":%s", cfg.Port)
 			log.Printf("[Server] Devourer running on %s", addr)
 			log.Printf("[Server] Database: %s", cfg.DatabasePath)
@@ -92,7 +102,7 @@ func createLibraryCmd() *cobra.Command {
 			if name == "" || path == "" || libType == "" || provider == "" {
 				return fmt.Errorf("--name, --path, --type and --provider are required")
 			}
-			cfg := config.Load()
+			cfg := loadConfig()
 			sqlDB, err := openDB(cfg)
 			if err != nil {
 				return err
@@ -107,7 +117,7 @@ func createLibraryCmd() *cobra.Command {
 			}
 			log.Printf("[Command] Created library %q (id=%d)", lib.Name, lib.ID)
 
-			providers, _ := metadata.LoadProviders(cfg.PluginsPath)
+			providers, _ := metadata.LoadProviders(cfg.PluginsFS)
 			scanCfg := &scanner.Config{DB: sqlDB, PluginsPath: cfg.PluginsPath, Providers: providers}
 			scanner.ScanLibrary(scanCfg, lib.ID)
 			return nil
@@ -130,14 +140,14 @@ func scanLibraryCmd() *cobra.Command {
 			if id == 0 {
 				return fmt.Errorf("--id is required")
 			}
-			cfg := config.Load()
+			cfg := loadConfig()
 			sqlDB, err := openDB(cfg)
 			if err != nil {
 				return err
 			}
 			defer sqlDB.Close()
 
-			providers, _ := metadata.LoadProviders(cfg.PluginsPath)
+			providers, _ := metadata.LoadProviders(cfg.PluginsFS)
 			scanCfg := &scanner.Config{DB: sqlDB, PluginsPath: cfg.PluginsPath, Providers: providers}
 			result, err := scanner.ScanLibrary(scanCfg, id)
 			if err != nil {
@@ -178,7 +188,7 @@ func resetPasswordCmd() *cobra.Command {
 			if email == "" || password == "" {
 				return fmt.Errorf("--username and --password are required")
 			}
-			cfg := config.Load()
+			cfg := loadConfig()
 			sqlDB, err := openDB(cfg)
 			if err != nil {
 				return err
@@ -210,7 +220,7 @@ func migrateCalibreCmd() *cobra.Command {
 			if provider == "" {
 				provider = "googlebooks"
 			}
-			cfg := config.Load()
+			cfg := loadConfig()
 			sqlDB, err := openDB(cfg)
 			if err != nil {
 				return err
@@ -231,7 +241,7 @@ func openDB(cfg *config.Config) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
-	if err := db.Initialize(sqlDB, cfg.MigrationsDir); err != nil {
+	if err := db.Initialize(sqlDB); err != nil {
 		sqlDB.Close()
 		return nil, fmt.Errorf("initialize database: %w", err)
 	}

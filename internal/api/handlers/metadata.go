@@ -10,7 +10,7 @@ import (
 
 // ListMetadataProviders handles GET /metadata/providers
 func (h *Handlers) ListMetadataProviders(c *gin.Context) {
-	providers, err := metadata.LoadProviders(h.Cfg.PluginsPath)
+	providers, err := metadata.LoadProviders(h.Cfg.PluginsFS)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": false, "message": err.Error()})
 		return
@@ -36,7 +36,7 @@ func (h *Handlers) SearchMetadata(c *gin.Context) {
 		return
 	}
 
-	providers, err := metadata.LoadProviders(h.Cfg.PluginsPath)
+	providers, err := metadata.LoadProviders(h.Cfg.PluginsFS)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": false, "message": err.Error()})
 		return

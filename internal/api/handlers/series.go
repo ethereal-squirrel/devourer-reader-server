@@ -310,7 +310,7 @@ func (h *Handlers) UploadBook(c *gin.Context) {
 		return
 	}
 
-	providers, _ := metadata.LoadProviders(h.Cfg.PluginsPath)
+	providers, _ := metadata.LoadProviders(h.Cfg.PluginsFS)
 	cfg := &scanner.Config{
 		DB:          h.DB,
 		AssetsPath:  h.Cfg.AssetsPath,
@@ -435,7 +435,7 @@ func (h *Handlers) UploadMangaFile(c *gin.Context) {
 		return
 	}
 
-	providers, _ := metadata.LoadProviders(h.Cfg.PluginsPath)
+	providers, _ := metadata.LoadProviders(h.Cfg.PluginsFS)
 	cfg := &scanner.Config{
 		DB:          h.DB,
 		AssetsPath:  h.Cfg.AssetsPath,

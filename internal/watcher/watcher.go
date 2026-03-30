@@ -27,9 +27,6 @@ func isTarget(path string) bool {
 	return targetExts[strings.ToLower(filepath.Ext(path))]
 }
 
-// debounceDelay is how long to wait after the last file-system event before
-// processing a path.  This lets the OS finish writing the file before we open
-// it (important for large archives copied in all at once).
 const debounceDelay = 3 * time.Second
 
 type Watcher struct {
@@ -39,7 +36,6 @@ type Watcher struct {
 	providers   map[string]*metadata.Provider
 	fsw         *fsnotify.Watcher
 
-	// debounce: per-path timer fired after debounceDelay of silence
 	debounceMu sync.Mutex
 	debounce   map[string]*time.Timer
 
@@ -77,8 +73,6 @@ func (w *Watcher) Start() error {
 	return nil
 }
 
-// watchDir adds root and subdirectories up to maxWatchDepth levels deep.
-// Directories named ".devourer" are skipped entirely.
 const maxWatchDepth = 3
 
 func (w *Watcher) watchDir(root string) {
@@ -137,8 +131,6 @@ func (w *Watcher) loop() {
 			}
 
 			if event.Has(fsnotify.Create) {
-				// When a new directory appears (e.g. a whole series folder is
-				// pasted in), start watching it so files inside are caught.
 				if filepath.Base(event.Name) != ".devourer" {
 					if fi, err := os.Stat(event.Name); err == nil && fi.IsDir() {
 						w.watchDir(event.Name)
@@ -166,9 +158,6 @@ func (w *Watcher) loop() {
 	}
 }
 
-// enqueueAdd debounces path: the actual processing is deferred until
-// debounceDelay has elapsed with no further events for the same path.
-// This ensures the file is fully written before we try to open it.
 func (w *Watcher) enqueueAdd(path string) {
 	w.debounceMu.Lock()
 	defer w.debounceMu.Unlock()
