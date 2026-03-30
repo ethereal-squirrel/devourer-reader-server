@@ -1,0 +1,21 @@
+services:
+  devourer:
+    build: .
+    image: devourer-server:latest
+    container_name: devourer
+    restart: unless-stopped
+    ports:
+      - "9024:9024"
+    volumes:
+      - ./data:/app/data
+      - ./assets:/app/assets
+      # Mount your media libraries here, e.g.:
+      # - /path/to/books:/media/books
+      # - /path/to/manga:/media/manga
+    environment:
+      DATABASE_PATH: /app/data/devourer.db
+      ASSETS_PATH: /app/assets
+      MIGRATIONS_DIR: /app/migrations
+      PLUGINS_PATH: /app/plugins
+      PORT: 9024
+      # GIN_MODE: release
