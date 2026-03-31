@@ -42,7 +42,8 @@ func (h *Handlers) GetSeries(c *gin.Context) {
 		return
 	}
 
-	if lib.Type == "book" {
+	switch lib.Type {
+	case "book":
 		file, err := queries.GetBookFileByID(h.DB, seriesID)
 		if err != nil || file.LibraryID != libraryID {
 			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "Book not found"})
@@ -58,7 +59,21 @@ func (h *Handlers) GetSeries(c *gin.Context) {
 			"formats": file.Formats, "tags": file.Tags,
 			"userRating": rating, "userTags": tags,
 		}})
-	} else {
+	case "audiobook":
+		series, err := queries.GetAudiobookSeriesByLibraryAndID(h.DB, libraryID, seriesID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "Audiobook not found"})
+			return
+		}
+		rating, _ := queries.GetUserRating(h.DB, uid, series.ID, lib.Type)
+		tags, _ := queries.ListUserTags(h.DB, uid, series.ID, lib.Type)
+		c.JSON(http.StatusOK, gin.H{"status": true, "series": gin.H{
+			"id": series.ID, "title": series.Title, "path": series.Path,
+			"cover": series.Cover, "library_id": series.LibraryID,
+			"audiobook_data": series.AudiobookData,
+			"userRating": rating, "userTags": tags,
+		}})
+	default:
 		series, err := queries.GetMangaSeriesByID(h.DB, seriesID)
 		if err != nil || series.LibraryID != libraryID {
 			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "Series not found"})
@@ -93,6 +108,40 @@ func (h *Handlers) ListSeriesFiles(c *gin.Context) {
 	lib, err := queries.GetLibraryByID(h.DB, libraryID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "Library not found"})
+		return
+	}
+
+	if lib.Type == "audiobook" {
+		abFiles, err := queries.ListAudiobookFilesBySeries(h.DB, seriesID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"status": false, "message": err.Error()})
+			return
+		}
+		type abFileOut struct {
+			ID              int64  `json:"id"`
+			SeriesID        int64  `json:"series_id"`
+			FileName        string `json:"file_name"`
+			FileFormat      string `json:"file_format"`
+			TrackNumber     int    `json:"track_number"`
+			DurationSeconds int    `json:"duration_seconds"`
+			CurrentPosition string `json:"current_position_seconds"`
+			IsListened      bool   `json:"is_listened"`
+		}
+		out := make([]abFileOut, 0, len(abFiles))
+		for _, f := range abFiles {
+			status, _ := queries.GetReadingStatus(h.DB, uid, f.ID, lib.Type)
+			cp := "0"
+			if status != nil {
+				cp = status.CurrentPage
+			}
+			out = append(out, abFileOut{
+				ID: f.ID, SeriesID: f.SeriesID, FileName: f.FileName,
+				FileFormat: f.FileFormat, TrackNumber: f.TrackNumber,
+				DurationSeconds: f.DurationSeconds, CurrentPosition: cp,
+				IsListened: f.IsListened,
+			})
+		}
+		c.JSON(http.StatusOK, gin.H{"status": true, "files": out})
 		return
 	}
 
@@ -157,7 +206,8 @@ func (h *Handlers) UpdateSeriesMetadata(c *gin.Context) {
 
 	metaJSON, _ := json.Marshal(body.Metadata)
 
-	if lib.Type == "book" {
+	switch lib.Type {
+	case "book":
 		book, err := queries.GetBookFileByID(h.DB, seriesID)
 		if err != nil || book.LibraryID != libraryID {
 			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "Book not found"})
@@ -167,7 +217,29 @@ func (h *Handlers) UpdateSeriesMetadata(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"status": false, "message": err.Error()})
 			return
 		}
-	} else {
+	case "audiobook":
+		series, err := queries.GetAudiobookSeriesByLibraryAndID(h.DB, libraryID, seriesID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "Audiobook not found"})
+			return
+		}
+		if err := queries.UpdateAudiobookSeriesMetadata(h.DB, series.ID, json.RawMessage(metaJSON)); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"status": false, "message": err.Error()})
+			return
+		}
+		var meta map[string]any
+		if json.Unmarshal(metaJSON, &meta) == nil {
+			if coverURL, ok := meta["coverImage"].(string); ok && coverURL != "" {
+				coverDir := filepath.Join(lib.MetaBase(), "series", strconv.FormatInt(seriesID, 10))
+				os.MkdirAll(coverDir, 0o755)
+				coverPath := filepath.Join(coverDir, "cover.jpg")
+				go imgconvert.DownloadAndSave(coverURL, coverPath, imgconvert.CoverMaxWidth)
+			}
+			if mins, ok := meta["runtime_minutes"].(float64); ok && mins > 0 {
+				queries.UpdateAudiobookSeriesTotalDuration(h.DB, series.ID, int(mins*60))
+			}
+		}
+	default:
 		series, err := queries.GetMangaSeriesByID(h.DB, seriesID)
 		if err != nil || series.LibraryID != libraryID {
 			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "Series not found"})
@@ -177,7 +249,6 @@ func (h *Handlers) UpdateSeriesMetadata(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"status": false, "message": err.Error()})
 			return
 		}
-
 		var meta map[string]any
 		if json.Unmarshal(metaJSON, &meta) == nil {
 			if coverURL, ok := meta["coverImage"].(string); ok && coverURL != "" {
@@ -219,14 +290,22 @@ func (h *Handlers) UpdateSeriesCover(c *gin.Context) {
 	}
 
 	var coverDir string
-	if lib.Type == "book" {
+	switch lib.Type {
+	case "book":
 		book, err := queries.GetBookFileByID(h.DB, seriesID)
 		if err != nil || book.LibraryID != libraryID {
 			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "Book not found"})
 			return
 		}
 		coverDir = filepath.Join(lib.MetaBase(), "files", strconv.FormatInt(seriesID, 10))
-	} else {
+	case "audiobook":
+		series, err := queries.GetAudiobookSeriesByLibraryAndID(h.DB, libraryID, seriesID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "Audiobook not found"})
+			return
+		}
+		coverDir = filepath.Join(lib.MetaBase(), "series", strconv.FormatInt(series.ID, 10))
+	default:
 		series, err := queries.GetMangaSeriesByID(h.DB, seriesID)
 		if err != nil || series.LibraryID != libraryID {
 			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "Series not found"})

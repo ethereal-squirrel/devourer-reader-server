@@ -1,0 +1,25 @@
+{
+  "key": "audnexus",
+  "name": "Audnexus",
+  "type": "metadata",
+  "properties": {
+    "library_type": "audiobook",
+    "results_entity": "",
+    "search_fallback": "title"
+  },
+  "endpoints": {
+    "title": "https://api.audnex.us/books?q={{query}}"
+  },
+  "parser": {
+    "metadata_id": "asin",
+    "title": "title",
+    "description": "description",
+    "coverImage": "image",
+    "authors": { "key": "authors", "value": "name" },
+    "narrators": { "key": "narrators", "value": "name" },
+    "genres": { "key": "genres", "value": "name" },
+    "publisher": "publisherName",
+    "release_date": "releaseDate",
+    "runtime_minutes": "runtimeLengthMin"
+  }
+}

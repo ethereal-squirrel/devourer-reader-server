@@ -122,9 +122,12 @@ func ScanLibrary(cfg *Config, libraryID int64) (*ScanResult, error) {
 	setScanStatus(lib.ID, status)
 
 	go func() {
-		if lib.Type == "book" {
+		switch lib.Type {
+		case "book":
 			ScanBookLibrary(cfg, lib, topLevel)
-		} else {
+		case "audiobook":
+			ScanAudiobookLibrary(cfg, lib, topLevel)
+		default:
 			ScanMangaLibrary(cfg, lib, topLevel)
 		}
 		scanMu.Lock()
@@ -221,11 +224,18 @@ func UpdateRecentlyRead(d *sql.DB, lib *db.Library, fileID int64, page string, u
 	var seriesID int64
 	var totalPages, volume, chapter int
 
-	if lib.Type == "book" {
+	switch lib.Type {
+	case "book":
 		if f, err := queries.GetBookFileByID(d, fileID); err == nil {
 			totalPages = f.TotalPages
 		}
-	} else {
+	case "audiobook":
+		if f, err := queries.GetAudiobookFileByID(d, fileID); err == nil {
+			seriesID = f.SeriesID
+			totalPages = f.DurationSeconds
+			chapter = f.TrackNumber
+		}
+	default:
 		if f, err := queries.GetMangaFileByID(d, fileID); err == nil {
 			seriesID = f.SeriesID
 			totalPages = f.TotalPages
