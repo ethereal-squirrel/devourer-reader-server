@@ -21,6 +21,8 @@ var targetExts = map[string]bool{
 	".cbz": true, ".zip": true, ".cbr": true,
 	".rar": true, ".pdf": true, ".epub": true,
 	".7z": true, ".cb7": true,
+	".mp3": true, ".m4a": true, ".m4b": true, ".ogg": true,
+	".flac": true, ".aac": true, ".opus": true, ".wav": true,
 }
 
 func isTarget(path string) bool {
@@ -181,9 +183,12 @@ func (w *Watcher) processAdd(path string) {
 	}
 
 	cfg := &scanner.Config{DB: w.db, AssetsPath: w.assetsPath, PluginsPath: w.pluginsPath, Providers: w.providers}
-	if lib.Type == "book" {
+	switch lib.Type {
+	case "book":
 		scanner.ProcessBook(cfg, lib, path)
-	} else {
+	case "audiobook":
+		scanner.ProcessAudiobook(cfg, lib, filepath.Dir(path))
+	default:
 		rel, _ := filepath.Rel(lib.Path, path)
 		parts := strings.SplitN(filepath.ToSlash(rel), "/", 2)
 		if len(parts) > 1 {
@@ -218,9 +223,12 @@ func (w *Watcher) processDeletes() {
 		if lib == nil {
 			continue
 		}
-		if lib.Type == "book" {
+		switch lib.Type {
+		case "book":
 			scanner.DeleteBook(w.db, lib.Path, path)
-		} else {
+		case "audiobook":
+			scanner.DeleteAudiobook(w.db, lib.Path, path)
+		default:
 			scanner.DeleteManga(w.db, lib.Path, path)
 		}
 	}

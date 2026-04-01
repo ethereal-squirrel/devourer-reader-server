@@ -26,7 +26,7 @@ func Load() *Config {
 		ClientPath:        getEnv("CLIENT_PATH", "./client"),
 		PluginsPath:       getEnv("PLUGINS_PATH", "./plugins"),
 		UploadMaxSizeMB:   getEnvInt64("UPLOAD_MAX_SIZE_MB", 1024),
-		UploadAllowedExts: parseExtList(getEnv("UPLOAD_ALLOWED_EXTS", "epub,pdf,mobi,docx,doc,rtf,html,txt,cbz,cbr,zip,rar,7z,cb7")),
+		UploadAllowedExts: parseExtList(getEnv("UPLOAD_ALLOWED_EXTS", "epub,pdf,mobi,docx,doc,rtf,html,txt,cbz,cbr,zip,rar,7z,cb7,mp3,m4a,m4b,ogg,flac,aac,opus,wav")),
 	}
 }
 

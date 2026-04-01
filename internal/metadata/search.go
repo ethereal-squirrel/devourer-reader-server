@@ -44,6 +44,17 @@ func Search(providers map[string]*Provider, providerKey, by, value, apiKey strin
 		return nil, fmt.Errorf("metadata HTTP %d", resp.StatusCode)
 	}
 
+	if p.Properties.ResultsEntity == "" {
+		var arr []any
+		if json.Unmarshal(body, &arr) == nil && len(arr) > 0 {
+			selected := selectResult(arr, value, p)
+			if selected == nil {
+				return nil, nil
+			}
+			return parseMetadata(selected, p.Parser, p.PostProcessing), nil
+		}
+	}
+
 	var raw map[string]any
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return nil, err

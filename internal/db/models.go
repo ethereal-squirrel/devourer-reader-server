@@ -136,6 +136,29 @@ type UserTag struct {
 	Tag      string `json:"tag"`
 }
 
+type AudiobookSeries struct {
+	ID                   int64           `json:"id"`
+	Title                string          `json:"title"`
+	Path                 string          `json:"path"`
+	Cover                string          `json:"cover"`
+	LibraryID            int64           `json:"library_id"`
+	AudiobookData        json.RawMessage `json:"audiobook_data"`
+	TotalDurationSeconds int             `json:"total_duration_seconds"`
+}
+
+type AudiobookFile struct {
+	ID                     int64           `json:"id"`
+	Path                   string          `json:"path"`
+	FileName               string          `json:"file_name"`
+	FileFormat             string          `json:"file_format"`
+	TrackNumber            int             `json:"track_number"`
+	DurationSeconds        int             `json:"duration_seconds"`
+	CurrentPositionSeconds string          `json:"current_position_seconds"`
+	IsListened             bool            `json:"is_listened"`
+	SeriesID               int64           `json:"series_id"`
+	Metadata               json.RawMessage `json:"metadata"`
+}
+
 type Collection struct {
 	ID        int64           `json:"id"`
 	LibraryID int64           `json:"library_id"`

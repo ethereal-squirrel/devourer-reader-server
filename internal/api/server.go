@@ -112,6 +112,7 @@ func NewServer(d *sql.DB, cfg *config.Config, w handlers.Watcher, clientFS fs.FS
 	// Metadata
 	r.GET("/metadata/providers", auth, h.ListMetadataProviders)
 	r.POST("/metadata/search", auth, h.SearchMetadata)
+	r.GET("/metadata/audiobooks/search", auth, h.SearchAudiobookMetadata)
 
 	// Calibre migration
 	r.POST("/migrate/calibre", auth, authmw.RequirePermission("ManageLibrary"), h.MigrateCalibre)
