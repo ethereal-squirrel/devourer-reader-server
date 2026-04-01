@@ -100,8 +100,6 @@ func audibleFetch(query, region string) ([]map[string]any, error) {
 	return data.Products, nil
 }
 
-// AudibleSearch returns the best matching result for a title, preferring an
-// exact title match and falling back to the first result.
 func AudibleSearch(title, region string) (map[string]any, error) {
 	products, err := audibleFetch(title, region)
 	if err != nil {
@@ -123,7 +121,6 @@ func AudibleSearch(title, region string) (map[string]any, error) {
 	return normalizeAudibleProduct(product), nil
 }
 
-// AudibleSearchAll returns all results for a query, normalized.
 func AudibleSearchAll(query, region string) ([]map[string]any, error) {
 	products, err := audibleFetch(query, region)
 	if err != nil {
