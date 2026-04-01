@@ -49,3 +49,20 @@ func (h *Handlers) SearchMetadata(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": true, "result": result})
 }
+
+// SearchAudiobookMetadata handles GET /metadata/audiobooks/search?q=<query>&region=<region>
+func (h *Handlers) SearchAudiobookMetadata(c *gin.Context) {
+	query := c.Query("q")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"status": false, "message": "q is required"})
+		return
+	}
+	region := c.Query("region")
+
+	results, err := metadata.AudibleSearchAll(query, region)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": true, "results": results})
+}

@@ -107,7 +107,7 @@ func ProcessAudiobook(cfg *Config, lib *db.Library, folderPath string) error {
 
 	series, err := queries.GetAudiobookSeriesByPath(cfg.DB, folderPath)
 	if err != nil {
-		audiobookDataJSON := fetchAudiobookMetadata(cfg.Providers, lib, folderName)
+		audiobookDataJSON := fetchAudiobookMetadata(lib, folderName)
 		totalDuration := durationSecondsFromMetadata(audiobookDataJSON)
 		series, err = queries.CreateAudiobookSeries(cfg.DB, &db.AudiobookSeries{
 			Title:                folderName,
@@ -268,39 +268,47 @@ func durationSecondsFromMetadata(data json.RawMessage) int {
 	return 0
 }
 
-func fetchAudiobookMetadata(providers map[string]*metadata.Provider, lib *db.Library, title string) json.RawMessage {
-	if providers == nil {
-		return json.RawMessage(`{}`)
-	}
+func fetchAudiobookMetadata(lib *db.Library, title string) json.RawMessage {
+	log.Printf("[Audible] fetchAudiobookMetadata called for title: %q", title)
 
-	var providerKey, apiKey string
+	var region string
 	if lib.Metadata != nil {
 		var libMeta map[string]any
 		if json.Unmarshal(lib.Metadata, &libMeta) == nil {
-			if p, ok := libMeta["provider"].(string); ok {
-				providerKey = p
-			}
-			if k, ok := libMeta["api_key"].(string); ok {
-				apiKey = k
+			if r, ok := libMeta["region"].(string); ok {
+				region = r
 			}
 		}
 	}
-	if providerKey == "" {
-		providerKey = "audnexus"
+
+	if region == "" {
+		region = "us"
 	}
 
-	metadata.AudnexusLimiter.Wait()
-	result, err := metadata.Search(providers, providerKey, "title", title, apiKey)
+	log.Printf("[Audible] using region %q for title %q", region, title)
+
+	log.Printf("[Audible] waiting on rate limiter for %q", title)
+	metadata.AudibleLimiter.Wait()
+
+	result, err := metadata.AudibleSearch(title, region)
+
 	if err != nil {
-		log.Printf("[Metadata] audiobook search failed for %s: %v", title, err)
+		log.Printf("[Audible] search failed for %q: %v", title, err)
 		return json.RawMessage(`{}`)
 	}
+
 	if result == nil {
+		log.Printf("[Audible] no result for %q", title)
 		return json.RawMessage(`{}`)
 	}
+
 	data, err := json.Marshal(result)
 	if err != nil {
+		log.Printf("[Audible] failed to marshal result for %q: %v", title, err)
 		return json.RawMessage(`{}`)
 	}
+
+	log.Printf("[Audible] result for %q: %s", title, string(data))
+
 	return json.RawMessage(data)
 }
