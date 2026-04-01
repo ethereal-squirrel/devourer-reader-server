@@ -86,4 +86,5 @@ var (
 	GoogleBooksLimiter = NewRateLimiter(30, 60*time.Second, 400*time.Millisecond)
 	OpenLibraryLimiter = NewRateLimiter(30, 60*time.Second, 400*time.Millisecond)
 	ComicVineLimiter   = NewRateLimiter(200, 3600*time.Second, 400*time.Millisecond)
+	AudibleLimiter     = NewRateLimiter(20, 60*time.Second, 500*time.Millisecond)
 )

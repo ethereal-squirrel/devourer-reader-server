@@ -71,7 +71,6 @@ func TestParseExtList_AlreadyHasDot(t *testing.T) {
 	m := parseExtList(".epub")
 
 	assert.True(t, m[".epub"])
-	// Should not double-dot
 	assert.False(t, m["..epub"])
 }
 

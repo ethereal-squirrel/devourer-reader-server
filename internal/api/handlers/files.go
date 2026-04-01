@@ -34,14 +34,38 @@ func (h *Handlers) GetFile(c *gin.Context) {
 		return
 	}
 
-	if lib.Type == "book" {
+	switch lib.Type {
+	case "book":
 		file, err := queries.GetBookFileByID(h.DB, id)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "File not found"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"status": true, "file": file})
-	} else {
+	case "audiobook":
+		file, err := queries.GetAudiobookFileByID(h.DB, id)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "File not found"})
+			return
+		}
+		var nextTrack any
+		if file.TrackNumber > 0 {
+			allFiles, _ := queries.ListAudiobookFilesBySeries(h.DB, file.SeriesID)
+			for i, f := range allFiles {
+				if f.ID == file.ID && i+1 < len(allFiles) {
+					nf := allFiles[i+1]
+					nextTrack = gin.H{"id": nf.ID, "series_id": nf.SeriesID, "track_number": nf.TrackNumber}
+					break
+				}
+			}
+		}
+		c.JSON(http.StatusOK, gin.H{"status": true, "file": gin.H{
+			"id": file.ID, "series_id": file.SeriesID, "file_name": file.FileName,
+			"file_format": file.FileFormat, "track_number": file.TrackNumber,
+			"duration_seconds": file.DurationSeconds, "is_listened": file.IsListened,
+			"metadata": file.Metadata, "nextTrack": nextTrack,
+		}})
+	default:
 		file, err := queries.GetMangaFileByID(h.DB, id)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "File not found"})
@@ -102,7 +126,8 @@ func (h *Handlers) StreamFile(c *gin.Context) {
 
 	var filePath, fileName, contentType string
 
-	if lib.Type == "book" {
+	switch lib.Type {
+	case "book":
 		file, err := queries.GetBookFileByID(h.DB, id)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "File not found"})
@@ -111,7 +136,34 @@ func (h *Handlers) StreamFile(c *gin.Context) {
 		filePath = file.Path
 		fileName = file.FileName
 		contentType = "application/octet-stream"
-	} else {
+	case "audiobook":
+		file, err := queries.GetAudiobookFileByID(h.DB, id)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "File not found"})
+			return
+		}
+		filePath = file.Path
+		fileName = file.FileName
+		switch file.FileFormat {
+		case "mp3":
+			contentType = "audio/mpeg"
+		case "m4a", "m4b":
+			contentType = "audio/mp4"
+		case "ogg":
+			contentType = "audio/ogg"
+		case "flac":
+			contentType = "audio/flac"
+		case "aac":
+			contentType = "audio/aac"
+		case "opus":
+			contentType = "audio/opus"
+		case "wav":
+			contentType = "audio/wav"
+		default:
+			contentType = "audio/mpeg"
+		}
+		c.Header("Accept-Ranges", "bytes")
+	default:
 		file, err := queries.GetMangaFileByID(h.DB, id)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "File not found"})
@@ -209,14 +261,22 @@ func (h *Handlers) MarkAsRead(c *gin.Context) {
 	}
 
 	var totalPages int
-	if lib.Type == "book" {
+	switch lib.Type {
+	case "book":
 		file, err := queries.GetBookFileByID(h.DB, id)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "File not found"})
 			return
 		}
 		totalPages = file.TotalPages
-	} else {
+	case "audiobook":
+		file, err := queries.GetAudiobookFileByID(h.DB, id)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "File not found"})
+			return
+		}
+		totalPages = file.DurationSeconds
+	default:
 		file, err := queries.GetMangaFileByID(h.DB, id)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"status": false, "message": "File not found"})

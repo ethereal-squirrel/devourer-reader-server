@@ -27,6 +27,7 @@ func (h *Handlers) ListLibraries(c *gin.Context) {
 	type seriesPreview struct {
 		ID    int64  `json:"id"`
 		Title string `json:"title,omitempty"`
+		Cover string `json:"cover,omitempty"`
 	}
 	type libOut struct {
 		ID          int64           `json:"id"`
@@ -42,17 +43,24 @@ func (h *Handlers) ListLibraries(c *gin.Context) {
 	for _, lib := range libs {
 		var preview []seriesPreview
 		var count int
-		if lib.Type == "book" {
+		switch lib.Type {
+		case "book":
 			files, _ := queries.ListBookFilesPreview(h.DB, lib.ID, 3)
 			count, _ = queries.CountBookFiles(h.DB, lib.ID)
 			for _, f := range files {
 				preview = append(preview, seriesPreview{ID: f.ID})
 			}
-		} else {
+		case "audiobook":
+			abSeries, _ := queries.ListAudiobookSeriesPreview(h.DB, lib.ID, 3)
+			count, _ = queries.CountAudiobookSeries(h.DB, lib.ID)
+			for _, s := range abSeries {
+				preview = append(preview, seriesPreview{ID: s.ID, Title: s.Title, Cover: s.Cover})
+			}
+		default:
 			series, _ := queries.ListMangaSeriesPreview(h.DB, lib.ID, 3)
 			count, _ = queries.CountMangaSeries(h.DB, lib.ID)
 			for _, s := range series {
-				preview = append(preview, seriesPreview{ID: s.ID, Title: s.Title})
+				preview = append(preview, seriesPreview{ID: s.ID, Title: s.Title, Cover: s.Cover})
 			}
 		}
 		if preview == nil {
@@ -125,13 +133,20 @@ func (h *Handlers) GetLibrary(c *gin.Context) {
 	uid, _ := userID.(int64)
 
 	var series any
-	if lib.Type == "book" {
+	switch lib.Type {
+	case "book":
 		files, _ := queries.ListBookFilesByLibrary(h.DB, lib.ID)
 		if files == nil {
 			files = []*db.BookFile{}
 		}
 		series = files
-	} else {
+	case "audiobook":
+		abSeries, _ := queries.ListAudiobookSeriesByLibrary(h.DB, lib.ID)
+		if abSeries == nil {
+			abSeries = []*db.AudiobookSeries{}
+		}
+		series = abSeries
+	default:
 		mSeries, _ := queries.ListMangaSeriesByLibrary(h.DB, lib.ID)
 		if mSeries == nil {
 			mSeries = []*db.MangaSeries{}
@@ -199,7 +214,8 @@ func (h *Handlers) DeleteLibrary(c *gin.Context) {
 
 	queries.DeleteRecentlyReadByLibrary(h.DB, id, nil)
 
-	if lib.Type == "book" {
+	switch lib.Type {
+	case "book":
 		bookIDs, _ := queries.ListBookFileIDsByLibrary(h.DB, id)
 		if len(bookIDs) > 0 {
 			queries.DeleteReadingStatusByFileType(h.DB, "book", bookIDs)
@@ -207,7 +223,25 @@ func (h *Handlers) DeleteLibrary(c *gin.Context) {
 			queries.DeleteUserTagsByFileType(h.DB, "book", bookIDs)
 		}
 		queries.DeleteBookFilesByLibrary(h.DB, id)
-	} else {
+	case "audiobook":
+		seriesIDs, _ := queries.ListAudiobookSeriesIDsByLibrary(h.DB, id)
+		var abFileIDs []int64
+		for _, sid := range seriesIDs {
+			files, _ := queries.ListAudiobookFilesPathBySeries(h.DB, sid)
+			for _, f := range files {
+				abFileIDs = append(abFileIDs, f.ID)
+			}
+		}
+		if len(abFileIDs) > 0 {
+			queries.DeleteReadingStatusByFileType(h.DB, "audiobook", abFileIDs)
+			queries.DeleteUserRatingsByFileType(h.DB, "audiobook", abFileIDs)
+			queries.DeleteUserTagsByFileType(h.DB, "audiobook", abFileIDs)
+		}
+		if len(seriesIDs) > 0 {
+			queries.DeleteAudiobookFilesBySeriesIDs(h.DB, seriesIDs)
+		}
+		queries.DeleteAudiobookSeriesByLibrary(h.DB, id)
+	default:
 		seriesIDs, _ := queries.ListMangaSeriesIDsByLibrary(h.DB, id)
 		var mangaFileIDs []int64
 		for _, sid := range seriesIDs {

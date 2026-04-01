@@ -38,18 +38,26 @@ var migration7 string
 //go:embed migrations/8.sql
 var migration8 string
 
+//go:embed migrations/9.sql
+var migration9 string
+
+//go:embed migrations/10.sql
+var migration10 string
+
 var migrations = map[int]string{
-	1: migration1,
-	2: migration2,
-	3: migration3,
-	4: migration4,
-	5: migration5,
-	6: migration6,
-	7: migration7,
-	8: migration8,
+	1:  migration1,
+	2:  migration2,
+	3:  migration3,
+	4:  migration4,
+	5:  migration5,
+	6:  migration6,
+	7:  migration7,
+	8:  migration8,
+	9:  migration9,
+	10: migration10,
 }
 
-const DatabaseVersion = 8
+const DatabaseVersion = 10
 
 func Open(dbPath string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", dbPath)
