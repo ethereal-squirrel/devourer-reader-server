@@ -124,6 +124,26 @@ func (w *Watcher) Restart() {
 	w.Start()
 }
 
+func (w *Watcher) debounceKeyFor(filePath string) string {
+	lib := w.findLibrary(filePath)
+	if lib == nil {
+		return filePath
+	}
+	switch lib.Type {
+	case "book":
+		return filePath
+	case "audiobook":
+		return filepath.Dir(filePath)
+	default: // manga
+		rel, _ := filepath.Rel(lib.Path, filePath)
+		parts := strings.SplitN(filepath.ToSlash(rel), "/", 2)
+		if len(parts) > 0 {
+			return filepath.Join(lib.Path, parts[0])
+		}
+		return filePath
+	}
+}
+
 func (w *Watcher) loop() {
 	for {
 		select {
@@ -143,7 +163,8 @@ func (w *Watcher) loop() {
 			switch {
 			case event.Has(fsnotify.Create) || event.Has(fsnotify.Write):
 				if isTarget(event.Name) {
-					w.enqueueAdd(event.Name)
+					debounceKey := w.debounceKeyFor(event.Name)
+					w.enqueueAdd(debounceKey, event.Name)
 				}
 			case event.Has(fsnotify.Remove) || event.Has(fsnotify.Rename):
 				if isTarget(event.Name) {
@@ -160,17 +181,17 @@ func (w *Watcher) loop() {
 	}
 }
 
-func (w *Watcher) enqueueAdd(path string) {
+func (w *Watcher) enqueueAdd(debounceKey, path string) {
 	w.debounceMu.Lock()
 	defer w.debounceMu.Unlock()
 
-	if t, ok := w.debounce[path]; ok {
+	if t, ok := w.debounce[debounceKey]; ok {
 		t.Reset(debounceDelay)
 		return
 	}
-	w.debounce[path] = time.AfterFunc(debounceDelay, func() {
+	w.debounce[debounceKey] = time.AfterFunc(debounceDelay, func() {
 		w.debounceMu.Lock()
-		delete(w.debounce, path)
+		delete(w.debounce, debounceKey)
 		w.debounceMu.Unlock()
 		w.processAdd(path)
 	})
