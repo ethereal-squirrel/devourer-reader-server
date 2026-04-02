@@ -1,6 +1,6 @@
 # Devourer (Server)
 
-A library server providing a highly performant system to archive, scan and catalog your books, manga and comics.
+A library server providing a highly performant system to archive, scan and catalog your books, manga, comics and audiobooks.
 
 V2 is a fundamental rebuild of the server architecture and tooling, moving from Node.js to Go in order to get around... far too many packaging issues.
 
@@ -14,7 +14,7 @@ V2 is a fundamental rebuild of the server architecture and tooling, moving from 
 - Supports multiple users with role-based access control.
 - Retrieves relevant cover images and generates preview images for each archive.
 - Automatically retrieves metadata from various providers.
-- Supports libraries and collections. A library is either a collection of books or comics/manga; collections exist within libraries.
+- Supports libraries and collections. A library is a repository of audiobooks, books or comics/manga; collections exist within libraries.
 - Built-in SPA client served at `/client`.
 - File system watcher for automatic library updates.
 - Supports Windows, Linux and Mac.
@@ -29,6 +29,10 @@ V2 is a fundamental rebuild of the server architecture and tooling, moving from 
 - Supports EPUB and PDF. Support for other formats to follow shortly.
 - OPDS 1.2 support for e-reader compatibility.
 - Import existing libraries from Calibre.
+
+### Audiobook Features
+
+- Supports many audio formats.
 
 ---
 
