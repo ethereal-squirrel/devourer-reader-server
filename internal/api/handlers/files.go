@@ -72,6 +72,13 @@ func (h *Handlers) GetFile(c *gin.Context) {
 			return
 		}
 
+		userID, _ := c.Get(auth.CtxUserID)
+		uid, _ := userID.(int64)
+		cp := 0
+		if status, _ := queries.GetReadingStatus(h.DB, uid, file.ID, lib.Type); status != nil {
+			cp, _ = strconv.Atoi(status.CurrentPage)
+		}
+
 		type withNext struct {
 			ID          int64  `json:"id"`
 			SeriesID    int64  `json:"series_id"`
@@ -99,7 +106,7 @@ func (h *Handlers) GetFile(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": true, "file": withNext{
 			ID: file.ID, SeriesID: file.SeriesID, FileName: file.FileName,
 			FileFormat: file.FileFormat, Volume: file.Volume, Chapter: file.Chapter,
-			TotalPages: file.TotalPages, CurrentPage: file.CurrentPage,
+			TotalPages: file.TotalPages, CurrentPage: cp,
 			IsRead: file.IsRead, NextFile: nextFile,
 		}})
 	}
