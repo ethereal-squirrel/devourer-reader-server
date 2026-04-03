@@ -152,14 +152,16 @@ func (h *Handlers) ListSeriesFiles(c *gin.Context) {
 	}
 
 	type fileOut struct {
-		ID          int64  `json:"id"`
-		SeriesID    int64  `json:"series_id"`
-		FileName    string `json:"file_name"`
-		FileFormat  string `json:"file_format"`
-		Volume      int    `json:"volume"`
-		Chapter     int    `json:"chapter"`
-		TotalPages  int    `json:"total_pages"`
-		CurrentPage int    `json:"current_page"`
+		ID          int64           `json:"id"`
+		SeriesID    int64           `json:"series_id"`
+		FileName    string          `json:"file_name"`
+		FileFormat  string          `json:"file_format"`
+		Volume      int             `json:"volume"`
+		Chapter     int             `json:"chapter"`
+		TotalPages  int             `json:"total_pages"`
+		CurrentPage int             `json:"current_page"`
+		IsRead      bool            `json:"is_read"`
+		Metadata    json.RawMessage `json:"metadata"`
 	}
 	out := make([]fileOut, 0, len(files))
 	for _, f := range files {
@@ -172,6 +174,7 @@ func (h *Handlers) ListSeriesFiles(c *gin.Context) {
 			ID: f.ID, SeriesID: f.SeriesID, FileName: f.FileName,
 			FileFormat: f.FileFormat, Volume: f.Volume, Chapter: f.Chapter,
 			TotalPages: f.TotalPages, CurrentPage: cp,
+			IsRead: f.IsRead, Metadata: f.Metadata,
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"status": true, "files": out})
